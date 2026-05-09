@@ -25,7 +25,7 @@ export const env = createEnv({
    * For them to be exposed to the client, prefix them with `NEXT_PUBLIC_`.
    */
   client: {
-    // NEXT_PUBLIC_CLIENTVAR: z.string(),
+    VITE_TICKER_WS_URL: z.url().default("ws://localhost:4001"),
   },
   /**
    * Destructure all variables from `process.env` to make sure they aren't tree-shaken away.

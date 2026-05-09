@@ -1,245 +1,242 @@
-import { Suspense } from "react";
-import { useForm } from "@tanstack/react-form";
-import {
-  useMutation,
-  useQueryClient,
-  useSuspenseQuery,
-} from "@tanstack/react-query";
+import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import { useSubscription } from "@trpc/tanstack-react-query";
 
-import type { RouterOutputs } from "@acme/api";
-import { CreatePostSchema } from "@acme/db/schema";
+import type { HistoryRange, Quote } from "@acme/validators";
 import { cn } from "@acme/ui";
 import { Button } from "@acme/ui/button";
-import {
-  Field,
-  FieldContent,
-  FieldError,
-  FieldGroup,
-  FieldLabel,
-} from "@acme/ui/field";
 import { Input } from "@acme/ui/input";
-import { toast } from "@acme/ui/toast";
+import { StockChart } from "@acme/ui/stock-chart";
 
-import { AuthShowcase } from "~/component/auth-showcase";
 import { useTRPC } from "~/lib/trpc";
 
 export const Route = createFileRoute("/")({
-  loader: ({ context }) => {
-    const { trpc, queryClient } = context;
-    void queryClient.prefetchQuery(trpc.post.all.queryOptions());
-  },
   component: RouteComponent,
 });
 
-function RouteComponent() {
-  return (
-    <main className="container h-screen py-16">
-      <div className="flex flex-col items-center justify-center gap-4">
-        <h1 className="text-5xl font-extrabold tracking-tight sm:text-[5rem]">
-          Create <span className="text-primary">T3</span> Turbo
-        </h1>
-        <AuthShowcase />
+const DEFAULT_SYMBOLS = ["AAPL", "MSFT", "NVDA", "TSLA"];
+const CHART_RANGES = ["1D", "5D", "1M", "3M", "6M", "1Y", "5Y", "MAX"] as const;
+const DEFAULT_CHART_RANGE = "1M" satisfies HistoryRange;
+const MAX_CHARTS = 25;
 
-        <CreatePostForm />
-        <div className="w-full max-w-2xl overflow-y-scroll">
-          <Suspense
-            fallback={
-              <div className="flex w-full flex-col gap-4">
-                <PostCardSkeleton />
-                <PostCardSkeleton />
-                <PostCardSkeleton />
-              </div>
-            }
-          >
-            <PostList />
-          </Suspense>
-        </div>
+function RouteComponent() {
+  const [symbols, setSymbols] = useState<string[]>(DEFAULT_SYMBOLS);
+  const [draft, setDraft] = useState("");
+  const canAddSymbol = symbols.length < MAX_CHARTS;
+
+  const addSymbol = () => {
+    const next = draft.trim().toUpperCase();
+    if (!next || symbols.includes(next) || !canAddSymbol) return;
+    setSymbols((prev) => [...prev, next]);
+    setDraft("");
+  };
+
+  const removeSymbol = (symbol: string) =>
+    setSymbols((prev) => prev.filter((s) => s !== symbol));
+
+  return (
+    <main className="container mx-auto max-w-4xl px-4 py-12">
+      <header className="mb-8 flex flex-col gap-2">
+        <h1 className="text-4xl font-bold tracking-tight">Live tickers</h1>
+        <p className="text-muted-foreground text-sm">
+          One global poller, ref-counted subscriptions. Add a symbol to open a
+          live tRPC subscription over WebSocket.
+        </p>
+      </header>
+
+      <form
+        className="mb-6 flex gap-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          addSymbol();
+        }}
+      >
+        <Input
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          placeholder="AAPL"
+          className="uppercase"
+          maxLength={16}
+        />
+        <Button type="submit" disabled={!canAddSymbol}>
+          Add
+        </Button>
+      </form>
+
+      {!canAddSymbol && (
+        <p className="text-muted-foreground mb-6 text-sm">
+          Maximum of {MAX_CHARTS} charts reached.
+        </p>
+      )}
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        {symbols.map((symbol) => (
+          <TickerCard
+            key={symbol}
+            symbol={symbol}
+            onRemove={() => removeSymbol(symbol)}
+          />
+        ))}
       </div>
+
+      {symbols.length === 0 && (
+        <p className="text-muted-foreground py-12 text-center text-sm">
+          No symbols yet. Add one above.
+        </p>
+      )}
+
+      <footer className="mt-8 text-center">
+        <a
+          href="https://www.tradingview.com/"
+          target="_blank"
+          rel="noreferrer"
+          className="text-muted-foreground/60 cursor-default text-xs"
+        >
+          Charts by TradingView
+        </a>
+      </footer>
     </main>
   );
 }
 
-function CreatePostForm() {
+function TickerCard({
+  symbol,
+  onRemove,
+}: {
+  symbol: string;
+  onRemove: () => void;
+}) {
   const trpc = useTRPC();
-
-  const queryClient = useQueryClient();
-  const createPost = useMutation(
-    trpc.post.create.mutationOptions({
-      onSuccess: async () => {
-        form.reset();
-        await queryClient.invalidateQueries(trpc.post.pathFilter());
-      },
-      onError: (err) => {
-        toast.error(
-          err.data?.code === "UNAUTHORIZED"
-            ? "You must be logged in to post"
-            : "Failed to create post",
-        );
-      },
-    }),
+  const [range, setRange] = useState<HistoryRange>(DEFAULT_CHART_RANGE);
+  const sub = useSubscription(
+    trpc.ticker.watch.subscriptionOptions({ symbol }),
   );
+  const history = useQuery(trpc.ticker.history.queryOptions({ symbol, range }));
 
-  const form = useForm({
-    defaultValues: {
-      content: "",
-      title: "",
-    },
-    validators: {
-      onSubmit: CreatePostSchema,
-    },
-    onSubmit: (data) => createPost.mutate(data.value),
-  });
+  const quote = sub.data;
+  const status = sub.status;
+
+  const positive = (quote?.change ?? 0) >= 0;
+  const priceFmt = useMemo(
+    () =>
+      new Intl.NumberFormat(undefined, {
+        style: "currency",
+        currency: quote?.currency ?? "USD",
+        maximumFractionDigits: 2,
+      }),
+    [quote?.currency],
+  );
 
   return (
-    <form
-      className="w-full max-w-2xl"
-      onSubmit={(event) => {
-        event.preventDefault();
-        void form.handleSubmit();
-      }}
-    >
-      <FieldGroup>
-        <form.Field
-          name="title"
-          children={(field) => {
-            const isInvalid =
-              field.state.meta.isTouched && !field.state.meta.isValid;
-            return (
-              <Field data-invalid={isInvalid}>
-                <FieldContent>
-                  <FieldLabel htmlFor={field.name}>Bug Title</FieldLabel>
-                </FieldContent>
-                <Input
-                  id={field.name}
-                  name={field.name}
-                  value={field.state.value}
-                  onBlur={field.handleBlur}
-                  onChange={(e) => field.handleChange(e.target.value)}
-                  aria-invalid={isInvalid}
-                  placeholder="Title"
-                />
-                {isInvalid && <FieldError errors={field.state.meta.errors} />}
-              </Field>
-            );
-          }}
-        />
-        <form.Field
-          name="content"
-          children={(field) => {
-            const isInvalid =
-              field.state.meta.isTouched && !field.state.meta.isValid;
-            return (
-              <Field data-invalid={isInvalid}>
-                <FieldContent>
-                  <FieldLabel htmlFor={field.name}>Content</FieldLabel>
-                </FieldContent>
-                <Input
-                  id={field.name}
-                  name={field.name}
-                  value={field.state.value}
-                  onBlur={field.handleBlur}
-                  onChange={(e) => field.handleChange(e.target.value)}
-                  aria-invalid={isInvalid}
-                  placeholder="Content"
-                />
-                {isInvalid && <FieldError errors={field.state.meta.errors} />}
-              </Field>
-            );
-          }}
-        />
-      </FieldGroup>
-      <Button type="submit">Create</Button>
-    </form>
-  );
-}
+    <div className="bg-muted/40 hover:bg-muted/60 relative flex flex-col gap-3 rounded-lg border p-4 transition-colors">
+      <button
+        type="button"
+        onClick={onRemove}
+        className="text-muted-foreground hover:text-foreground absolute top-3 right-3 text-xs"
+        aria-label={`Stop watching ${symbol}`}
+      >
+        ✕
+      </button>
 
-function PostList() {
-  const trpc = useTRPC();
-  const { data: posts } = useSuspenseQuery(trpc.post.all.queryOptions());
-
-  if (posts.length === 0) {
-    return (
-      <div className="relative flex w-full flex-col gap-4">
-        <PostCardSkeleton pulse={false} />
-        <PostCardSkeleton pulse={false} />
-        <PostCardSkeleton pulse={false} />
-
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/10">
-          <p className="text-2xl font-bold text-white">No posts yet</p>
+      <div className="flex items-baseline justify-between gap-2 pr-6">
+        <div>
+          <div className="text-lg font-bold">{symbol}</div>
+          {quote?.shortName && (
+            <div className="text-muted-foreground truncate text-xs">
+              {quote.shortName}
+            </div>
+          )}
         </div>
+        <StatusDot status={status} marketState={quote?.marketState} />
       </div>
-    );
-  }
 
-  return (
-    <div className="flex w-full flex-col gap-4">
-      {posts.map((p) => {
-        return <PostCard key={p.id} post={p} />;
-      })}
+      <div className="flex items-baseline justify-between gap-2">
+        <div className="font-mono text-3xl tabular-nums">
+          {quote ? priceFmt.format(quote.price) : <span>—</span>}
+        </div>
+        {quote?.change !== null && quote?.change !== undefined && (
+          <div
+            className={cn(
+              "font-mono text-sm tabular-nums",
+              positive ? "text-emerald-500" : "text-red-500",
+            )}
+          >
+            {positive ? "+" : ""}
+            {quote.change.toFixed(2)}
+            {quote.changePercent !== null && (
+              <span className="ml-1">
+                ({positive ? "+" : ""}
+                {quote.changePercent.toFixed(2)}%)
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="border-border/60 bg-background/60 overflow-hidden rounded-md border">
+        {history.isLoading ? (
+          <div className="text-muted-foreground flex h-24 items-center justify-center text-xs">
+            loading
+          </div>
+        ) : history.isError ? (
+          <div className="text-muted-foreground flex h-24 items-center justify-center text-xs">
+            error
+          </div>
+        ) : (
+          <StockChart data={history.data ?? []} />
+        )}
+      </div>
+
+      <div className="flex flex-wrap gap-1">
+        {CHART_RANGES.map((nextRange) => (
+          <button
+            key={nextRange}
+            type="button"
+            onClick={() => setRange(nextRange)}
+            className={cn(
+              "text-muted-foreground hover:bg-background hover:text-foreground rounded px-2 py-1 text-[11px] font-medium transition-colors",
+              range === nextRange && "bg-background text-foreground shadow-xs",
+            )}
+          >
+            {nextRange}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
 
-function PostCard(props: { post: RouterOutputs["post"]["all"][number] }) {
-  const trpc = useTRPC();
-  const queryClient = useQueryClient();
-  const deletePost = useMutation(
-    trpc.post.delete.mutationOptions({
-      onSuccess: async () => {
-        await queryClient.invalidateQueries(trpc.post.pathFilter());
-      },
-      onError: (err) => {
-        toast.error(
-          err.data?.code === "UNAUTHORIZED"
-            ? "You must be logged in to delete a post"
-            : "Failed to delete post",
-        );
-      },
-    }),
-  );
+function StatusDot({
+  status,
+  marketState,
+}: {
+  status: string;
+  marketState?: Quote["marketState"];
+}) {
+  const label =
+    status === "pending"
+      ? "connecting"
+      : status === "connecting"
+        ? "connecting"
+        : status === "error"
+          ? "error"
+          : marketState
+            ? marketState.toLowerCase()
+            : "live";
+  const color =
+    status === "error"
+      ? "bg-red-500"
+      : marketState === "REGULAR"
+        ? "bg-emerald-500 animate-pulse"
+        : marketState === "CLOSED"
+          ? "bg-zinc-500"
+          : "bg-amber-500";
 
   return (
-    <div className="bg-muted flex flex-row rounded-lg p-4">
-      <div className="grow">
-        <h2 className="text-primary text-2xl font-bold">{props.post.title}</h2>
-        <p className="mt-2 text-sm">{props.post.content}</p>
-      </div>
-      <div>
-        <Button
-          variant="ghost"
-          className="text-primary cursor-pointer text-sm font-bold uppercase hover:bg-transparent hover:text-white"
-          onClick={() => deletePost.mutate(props.post.id)}
-        >
-          Delete
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-function PostCardSkeleton(props: { pulse?: boolean }) {
-  const { pulse = true } = props;
-  return (
-    <div className="bg-muted flex flex-row rounded-lg p-4">
-      <div className="grow">
-        <h2
-          className={cn(
-            "bg-primary w-1/4 rounded-sm text-2xl font-bold",
-            pulse && "animate-pulse",
-          )}
-        >
-          &nbsp;
-        </h2>
-        <p
-          className={cn(
-            "mt-2 w-1/3 rounded-sm bg-current text-sm",
-            pulse && "animate-pulse",
-          )}
-        >
-          &nbsp;
-        </p>
-      </div>
+    <div className="text-muted-foreground flex items-center gap-1.5 text-xs">
+      <span className={cn("h-2 w-2 rounded-full", color)} />
+      {label}
     </div>
   );
 }

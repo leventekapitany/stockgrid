@@ -10,6 +10,7 @@
     "./input": "./src/input.tsx",
     "./label": "./src/label.tsx",
     "./separator": "./src/separator.tsx",
+    "./stock-chart": "./src/stock-chart.tsx",
     "./theme": "./src/theme.tsx",
     "./toast": "./src/toast.tsx"
   },
@@ -24,6 +25,9 @@
   "dependencies": {
     "@radix-ui/react-icons": "^1.3.2",
     "class-variance-authority": "^0.7.1",
+    "date-fns": "^4.1.0",
+    "lightweight-charts": "^5.2.0",
+    "lucide-react": "^1.14.0",
     "radix-ui": "^1.4.3",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.3.1"

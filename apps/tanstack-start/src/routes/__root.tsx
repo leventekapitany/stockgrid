@@ -11,7 +11,11 @@ import {
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 
 import type { AppRouter } from "@acme/api";
-import { ThemeProvider, ThemeToggle } from "@acme/ui/theme";
+import {
+  themeDetectorScript,
+  ThemeProvider,
+  ThemeToggle,
+} from "@acme/ui/theme";
 import { Toaster } from "@acme/ui/toast";
 
 import appCss from "~/styles.css?url";
@@ -39,11 +43,15 @@ function RootDocument({ children }: { children: React.ReactNode }) {
     <ThemeProvider>
       <html lang="en" suppressHydrationWarning>
         <head>
+          <script
+            dangerouslySetInnerHTML={{ __html: themeDetectorScript }}
+            suppressHydrationWarning
+          />
           <HeadContent />
         </head>
         <body className="bg-background text-foreground min-h-screen font-sans antialiased">
           {children}
-          <div className="absolute right-4 bottom-12">
+          <div className="fixed top-4 right-4 z-50">
             <ThemeToggle />
           </div>
           <Toaster />

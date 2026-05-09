@@ -13,6 +13,8 @@ import { z, ZodError } from "zod/v4";
 import type { Auth } from "@acme/auth";
 import { db } from "@acme/db/client";
 
+import type { MarketDataHandle } from "./poller";
+
 /**
  * 1. CONTEXT
  *
@@ -29,6 +31,7 @@ import { db } from "@acme/db/client";
 export const createTRPCContext = async (opts: {
   headers: Headers;
   auth: Auth;
+  marketData?: MarketDataHandle;
 }) => {
   const authApi = opts.auth.api;
   const session = await authApi.getSession({
@@ -38,6 +41,7 @@ export const createTRPCContext = async (opts: {
     authApi,
     session,
     db,
+    marketData: opts.marketData,
   };
 };
 /**

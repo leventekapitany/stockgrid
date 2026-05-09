@@ -2,9 +2,12 @@ import { createIsomorphicFn } from "@tanstack/react-start";
 import { getRequestHeaders } from "@tanstack/react-start/server";
 import {
   createTRPCClient,
+  createWSClient,
   httpBatchStreamLink,
   loggerLink,
+  splitLink,
   unstable_localLink,
+  wsLink,
 } from "@trpc/client";
 import { createTRPCContext } from "@trpc/tanstack-react-query";
 import SuperJSON from "superjson";
@@ -32,6 +35,7 @@ export const makeTRPCClient = createIsomorphicFn()
     });
   })
   .client(() => {
+    const wsClient = createWSClient({ url: env.VITE_TICKER_WS_URL });
     return createTRPCClient<Api.AppRouter>({
       links: [
         loggerLink({
@@ -39,14 +43,18 @@ export const makeTRPCClient = createIsomorphicFn()
             env.NODE_ENV === "development" ||
             (op.direction === "down" && op.result instanceof Error),
         }),
-        httpBatchStreamLink({
-          transformer: SuperJSON,
-          url: getBaseUrl() + "/api/trpc",
-          headers() {
-            const headers = new Headers();
-            headers.set("x-trpc-source", "tanstack-start-client");
-            return headers;
-          },
+        splitLink({
+          condition: (op) => op.path.startsWith("ticker."),
+          true: wsLink({ client: wsClient, transformer: SuperJSON }),
+          false: httpBatchStreamLink({
+            transformer: SuperJSON,
+            url: getBaseUrl() + "/api/trpc",
+            headers() {
+              const headers = new Headers();
+              headers.set("x-trpc-source", "tanstack-start-client");
+              return headers;
+            },
+          }),
         }),
       ],
     });
