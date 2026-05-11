@@ -6,7 +6,7 @@ import { initAuth } from "@acme/auth";
 
 import { poller } from "./poller";
 
-const PORT = Number(process.env.TICKER_PORT ?? 4001);
+const PORT = Number(process.env.PORT ?? process.env.TICKER_PORT ?? 4001);
 
 const auth = initAuth({
   baseUrl: `http://localhost:${PORT}`,

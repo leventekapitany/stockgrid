@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "pnpm with-env vite dev",
     "build": "vite build",
+    "deploy": "pnpm build && wrangler deploy --config wrangler.jsonc",
+    "preview": "pnpm build && wrangler dev --config wrangler.jsonc",
     "start": "vite start",
     "format": "prettier --check . --ignore-path ../../.gitignore --ignore-path .prettierignore",
     "lint": "eslint --flag unstable_native_nodejs_ts_config",
@@ -52,7 +54,8 @@
     "tailwindcss": "catalog:",
     "typescript": "catalog:",
     "vite": "catalog:",
-    "vite-tsconfig-paths": "^5.1.4"
+    "vite-tsconfig-paths": "^5.1.4",
+    "wrangler": "^4.90.0"
   },
   "prettier": "@acme/prettier-config"
 }

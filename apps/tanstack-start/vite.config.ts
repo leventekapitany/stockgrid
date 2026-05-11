@@ -13,7 +13,13 @@ export default defineConfig({
     tsConfigPaths({
       projects: ["./tsconfig.json"],
     }),
-    nitro(),
+    nitro({
+      preset: "cloudflare_module",
+      compatibilityDate: "2026-05-11",
+      cloudflare: {
+        nodeCompat: true,
+      },
+    }),
     tanstackStart(),
     viteReact(),
     tailwindcss(),
