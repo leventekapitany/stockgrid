@@ -1,4 +1,4 @@
-import type { HistoryBar, HistoryRange, Quote } from "@acme/validators";
+import type { HistoryBar, HistoryRange, Quote } from "@stock/validators";
 
 export interface MarketDataHandle {
   subscribe(symbol: string, emit: (quote: Quote) => void): () => void;

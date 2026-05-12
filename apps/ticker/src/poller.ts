@@ -1,12 +1,12 @@
 import YahooFinance from "yahoo-finance2";
 
-import type { MarketDataHandle } from "@acme/api";
+import type { MarketDataHandle } from "@stock/api";
 import type {
   HistoryBar,
   HistoryRange,
   MarketState,
   Quote,
-} from "@acme/validators";
+} from "@stock/validators";
 
 const yahooFinance = new YahooFinance({
   suppressNotices: ["yahooSurvey", "ripHistorical"],

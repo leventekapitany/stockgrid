@@ -10,13 +10,13 @@ import {
 } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 
-import type { AppRouter } from "@acme/api";
+import type { AppRouter } from "@stock/api";
 import {
   themeDetectorScript,
   ThemeProvider,
   ThemeToggle,
-} from "@acme/ui/theme";
-import { Toaster } from "@acme/ui/toast";
+} from "@stock/ui/theme";
+import { Toaster } from "@stock/ui/toast";
 
 import appCss from "~/styles.css?url";
 

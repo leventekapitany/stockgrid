@@ -3,11 +3,11 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useSubscription } from "@trpc/tanstack-react-query";
 
-import type { HistoryRange, Quote } from "@acme/validators";
-import { cn } from "@acme/ui";
-import { Button } from "@acme/ui/button";
-import { Input } from "@acme/ui/input";
-import { StockChart } from "@acme/ui/stock-chart";
+import type { HistoryRange, Quote } from "@stock/validators";
+import { cn } from "@stock/ui";
+import { Button } from "@stock/ui/button";
+import { Input } from "@stock/ui/input";
+import { StockChart } from "@stock/ui/stock-chart";
 
 import { useTRPC } from "~/lib/trpc";
 

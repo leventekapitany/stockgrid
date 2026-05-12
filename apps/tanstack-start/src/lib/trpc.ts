@@ -12,7 +12,7 @@ import {
 import { createTRPCContext } from "@trpc/tanstack-react-query";
 import SuperJSON from "superjson";
 
-import * as Api from "@acme/api";
+import * as Api from "@stock/api";
 
 import { auth } from "~/auth/server";
 import { env } from "~/env";

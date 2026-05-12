@@ -2,7 +2,7 @@ import type { VariantProps } from "class-variance-authority";
 import { cva } from "class-variance-authority";
 import { Slot as SlotPrimitive } from "radix-ui";
 
-import { cn } from "@acme/ui";
+import { cn } from "@stock/ui";
 
 export const buttonVariants = cva(
   "focus-visible:ring-ring/30 aria-invalid:border-destructive inline-flex shrink-0 items-center justify-center gap-2 rounded-full text-base leading-none font-semibold whitespace-nowrap transition-colors outline-none focus-visible:ring-[3px] disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",

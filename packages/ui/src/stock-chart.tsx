@@ -15,8 +15,8 @@ import {
   LineStyle,
 } from "lightweight-charts";
 
-import { cn } from "@acme/ui";
-import { useTheme } from "@acme/ui/theme";
+import { cn } from "@stock/ui";
+import { useTheme } from "@stock/ui/theme";
 
 export interface StockChartBar {
   time: number;

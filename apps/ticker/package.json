@@ -1,5 +1,5 @@
 {
-  "name": "@acme/ticker",
+  "name": "@stock/ticker",
   "private": true,
   "type": "module",
   "scripts": {
@@ -13,10 +13,10 @@
     "with-env": "dotenv -e ../../.env --"
   },
   "dependencies": {
-    "@acme/api": "workspace:*",
-    "@acme/auth": "workspace:*",
-    "@acme/db": "workspace:*",
-    "@acme/validators": "workspace:*",
+    "@stock/api": "workspace:*",
+    "@stock/auth": "workspace:*",
+    "@stock/db": "workspace:*",
+    "@stock/validators": "workspace:*",
     "@trpc/server": "catalog:",
     "superjson": "2.2.3",
     "ws": "^8.18.0",
@@ -24,9 +24,9 @@
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@acme/eslint-config": "workspace:*",
-    "@acme/prettier-config": "workspace:*",
-    "@acme/tsconfig": "workspace:*",
+    "@stock/eslint-config": "workspace:*",
+    "@stock/prettier-config": "workspace:*",
+    "@stock/tsconfig": "workspace:*",
     "@types/bun": "^1.1.13",
     "@types/node": "catalog:",
     "@types/ws": "^8.5.13",
@@ -35,5 +35,5 @@
     "prettier": "catalog:",
     "typescript": "catalog:"
   },
-  "prettier": "@acme/prettier-config"
+  "prettier": "@stock/prettier-config"
 }

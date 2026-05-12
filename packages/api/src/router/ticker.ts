@@ -2,8 +2,8 @@ import { EventEmitter, on } from "node:events";
 import type { TRPCRouterRecord } from "@trpc/server";
 import { TRPCError } from "@trpc/server";
 
-import type { Quote } from "@acme/validators";
-import { HistoryInput, WatchInput } from "@acme/validators";
+import type { Quote } from "@stock/validators";
+import { HistoryInput, WatchInput } from "@stock/validators";
 
 import { publicProcedure } from "../trpc";
 

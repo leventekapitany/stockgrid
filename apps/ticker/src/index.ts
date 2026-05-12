@@ -1,8 +1,8 @@
 import { applyWSSHandler } from "@trpc/server/adapters/ws";
 import { WebSocketServer } from "ws";
 
-import { appRouter, createTRPCContext } from "@acme/api";
-import { initAuth } from "@acme/auth";
+import { appRouter, createTRPCContext } from "@stock/api";
+import { initAuth } from "@stock/auth";
 
 import { poller } from "./poller";
 
