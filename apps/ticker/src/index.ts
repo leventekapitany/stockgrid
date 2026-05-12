@@ -1,3 +1,5 @@
+import { createServer } from "node:http";
+
 import { applyWSSHandler } from "@trpc/server/adapters/ws";
 import { WebSocketServer } from "ws";
 
@@ -8,6 +10,17 @@ import { poller } from "./poller";
 
 const PORT = Number(process.env.PORT ?? process.env.TICKER_PORT ?? 4001);
 
+const server = createServer((req, res) => {
+  if (req.url === "/health") {
+    res.writeHead(200, { "content-type": "application/json" });
+    res.end(JSON.stringify({ ok: true, service: "stock-ticker" }));
+    return;
+  }
+
+  res.writeHead(200, { "content-type": "text/plain; charset=utf-8" });
+  res.end("stock ticker websocket service\n");
+});
+
 const auth = initAuth({
   baseUrl: `http://localhost:${PORT}`,
   productionUrl: `http://localhost:${PORT}`,
@@ -16,7 +29,7 @@ const auth = initAuth({
   discordClientSecret: process.env.AUTH_DISCORD_SECRET ?? "",
 });
 
-const wss = new WebSocketServer({ port: PORT });
+const wss = new WebSocketServer({ server });
 
 const handler = applyWSSHandler({
   wss,
@@ -38,13 +51,15 @@ wss.on("connection", (ws) => {
   });
 });
 
-console.log(`[ticker] ws listening on :${PORT}`);
+server.listen(PORT, () => {
+  console.log(`[ticker] http/ws listening on :${PORT}`);
+});
 
 const shutdown = () => {
   console.log("[ticker] shutting down");
   handler.broadcastReconnectNotification();
   wss.close();
-  process.exit(0);
+  server.close(() => process.exit(0));
 };
 
 process.on("SIGTERM", shutdown);
