@@ -30,7 +30,7 @@ export const env = createEnv({
   /**
    * Destructure all variables from `process.env` to make sure they aren't tree-shaken away.
    */
-  runtimeEnv: process.env,
+  runtimeEnv: { ...process.env, ...import.meta.env },
   skipValidation:
     !!process.env.CI || process.env.npm_lifecycle_event === "lint",
 });

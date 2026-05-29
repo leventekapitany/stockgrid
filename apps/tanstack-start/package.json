@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "pnpm with-env vite dev",
     "build": "vite build",
-    "deploy": "pnpm build && wrangler deploy --config wrangler.jsonc",
+    "deploy": "VITE_TICKER_WS_URL=wss://stock-ticker.up.railway.app pnpm build && wrangler deploy --config wrangler.jsonc",
     "preview": "pnpm build && wrangler dev --config wrangler.jsonc",
     "start": "vite start",
     "format": "prettier --check . --ignore-path ../../.gitignore --ignore-path .prettierignore",
