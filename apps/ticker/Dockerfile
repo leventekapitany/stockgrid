@@ -8,6 +8,7 @@ COPY apps/ticker/package.json apps/ticker/
 COPY packages/api/package.json packages/api/
 COPY packages/auth/package.json packages/auth/
 COPY packages/db/package.json packages/db/
+COPY packages/market-data/package.json packages/market-data/
 COPY packages/validators/package.json packages/validators/
 COPY tooling/eslint/package.json tooling/eslint/
 COPY tooling/prettier/package.json tooling/prettier/
