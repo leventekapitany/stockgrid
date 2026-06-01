@@ -26,6 +26,12 @@ export const Route = createRootRouteWithContext<{
 }>()({
   head: () => ({
     links: [{ rel: "stylesheet", href: appCss }],
+    meta: [
+      {
+        name: "viewport",
+        content: "width=device-width, initial-scale=1, viewport-fit=cover",
+      },
+    ],
   }),
   component: RootComponent,
 });
@@ -50,10 +56,11 @@ function RootDocument({ children }: { children: React.ReactNode }) {
           <HeadContent />
         </head>
         <body className="bg-background text-foreground min-h-screen font-sans antialiased">
-          {children}
-          <div className="fixed top-4 right-4 z-50">
+          <header className="border-border/40 bg-background/80 sticky top-0 z-50 flex items-center justify-between border-b px-4 py-3 backdrop-blur-sm">
+            <span className="text-lg font-bold tracking-tight">StockGrid</span>
             <ThemeToggle />
-          </div>
+          </header>
+          {children}
           <Toaster />
           <TanStackRouterDevtools position="bottom-right" />
           <Scripts />

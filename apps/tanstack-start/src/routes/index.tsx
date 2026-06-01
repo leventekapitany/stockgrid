@@ -4,7 +4,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useSubscription } from "@trpc/tanstack-react-query";
 
 import type { HistoryRange, Quote } from "@stock/validators";
-import { cn } from "@stock/ui";
+import { cn, Moon } from "@stock/ui";
 import { Button } from "@stock/ui/button";
 import { Input } from "@stock/ui/input";
 import { StockChart } from "@stock/ui/stock-chart";
@@ -17,12 +17,13 @@ export const Route = createFileRoute("/")({
 
 const DEFAULT_SYMBOLS = ["AAPL", "MSFT", "NVDA", "TSLA"];
 const CHART_RANGES = ["1D", "5D", "1M", "3M", "6M", "1Y", "5Y", "MAX"] as const;
-const DEFAULT_CHART_RANGE = "1M" satisfies HistoryRange;
+const DEFAULT_CHART_RANGE = "1D" satisfies HistoryRange;
 const MAX_CHARTS = 25;
 
 function RouteComponent() {
   const [symbols, setSymbols] = useState<string[]>(DEFAULT_SYMBOLS);
   const [draft, setDraft] = useState("");
+  const [range, setRange] = useState<HistoryRange>(DEFAULT_CHART_RANGE);
   const canAddSymbol = symbols.length < MAX_CHARTS;
 
   const addSymbol = () => {
@@ -36,17 +37,9 @@ function RouteComponent() {
     setSymbols((prev) => prev.filter((s) => s !== symbol));
 
   return (
-    <main className="container mx-auto max-w-4xl px-4 py-12">
-      <header className="mb-8 flex flex-col gap-2">
-        <h1 className="text-4xl font-bold tracking-tight">Live tickers</h1>
-        <p className="text-muted-foreground text-sm">
-          One global poller, ref-counted subscriptions. Add a symbol to open a
-          live tRPC subscription over WebSocket.
-        </p>
-      </header>
-
+    <main className="mx-auto max-w-2xl px-4 py-6 lg:max-w-6xl">
       <form
-        className="mb-6 flex gap-2"
+        className="mb-4 flex gap-2"
         onSubmit={(e) => {
           e.preventDefault();
           addSymbol();
@@ -55,7 +48,7 @@ function RouteComponent() {
         <Input
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          placeholder="AAPL"
+          placeholder="Add symbol..."
           className="uppercase"
           maxLength={16}
         />
@@ -64,29 +57,27 @@ function RouteComponent() {
         </Button>
       </form>
 
-      {!canAddSymbol && (
-        <p className="text-muted-foreground mb-6 text-sm">
-          Maximum of {MAX_CHARTS} charts reached.
-        </p>
-      )}
+      <GlobalRangeSelector range={range} onRangeChange={setRange} />
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      {/* Mobile: list — Desktop: 2-col grid */}
+      <div className="divide-border divide-y lg:grid lg:grid-cols-2 lg:gap-3 lg:divide-y-0">
         {symbols.map((symbol) => (
-          <TickerCard
+          <TickerItem
             key={symbol}
             symbol={symbol}
+            range={range}
             onRemove={() => removeSymbol(symbol)}
           />
         ))}
       </div>
 
       {symbols.length === 0 && (
-        <p className="text-muted-foreground py-12 text-center text-sm">
+        <p className="text-muted-foreground py-16 text-center text-sm">
           No symbols yet. Add one above.
         </p>
       )}
 
-      <footer className="mt-8 text-center">
+      <footer className="mt-6 text-center">
         <a
           href="https://www.tradingview.com/"
           target="_blank"
@@ -100,24 +91,27 @@ function RouteComponent() {
   );
 }
 
-function TickerCard({
+function TickerItem({
   symbol,
+  range,
   onRemove,
 }: {
   symbol: string;
+  range: HistoryRange;
   onRemove: () => void;
 }) {
   const trpc = useTRPC();
-  const [range, setRange] = useState<HistoryRange>(DEFAULT_CHART_RANGE);
   const sub = useSubscription(
     trpc.ticker.watch.subscriptionOptions({ symbol }),
   );
   const history = useQuery(trpc.ticker.history.queryOptions({ symbol, range }));
 
   const quote = sub.data;
-  const status = sub.status;
+  const regularChange = quote?.regularChange ?? quote?.change;
+  const regularChangePercent =
+    quote?.regularChangePercent ?? quote?.changePercent;
+  const regularPositive = (regularChange ?? regularChangePercent ?? 0) >= 0;
 
-  const positive = (quote?.change ?? 0) >= 0;
   const priceFmt = useMemo(
     () =>
       new Intl.NumberFormat(undefined, {
@@ -128,72 +122,137 @@ function TickerCard({
     [quote?.currency],
   );
 
-  return (
-    <div className="bg-muted/40 hover:bg-muted/60 relative flex flex-col gap-3 rounded-lg border p-4 transition-colors">
-      <button
-        type="button"
-        onClick={onRemove}
-        className="text-muted-foreground hover:text-foreground absolute top-3 right-3 text-xs"
-        aria-label={`Stop watching ${symbol}`}
-      >
-        ✕
-      </button>
+  const chartContent = history.isLoading ? (
+    <div className="bg-muted/30 h-12 animate-pulse rounded lg:h-24" />
+  ) : history.isError ? (
+    <div className="text-muted-foreground flex h-12 items-center justify-center text-xs lg:h-24">
+      error
+    </div>
+  ) : null;
 
-      <div className="flex items-baseline justify-between gap-2 pr-6">
-        <div>
-          <div className="text-lg font-bold">{symbol}</div>
+  return (
+    <>
+      {/* ── Mobile: compact row ── */}
+      <div className="group flex items-center gap-3 py-4 lg:hidden">
+        <div className="w-24 shrink-0">
+          <div className="text-sm font-bold">{symbol}</div>
           {quote?.shortName && (
-            <div className="text-muted-foreground truncate text-xs">
+            <div className="text-muted-foreground w-24 truncate text-xs">
               {quote.shortName}
             </div>
           )}
         </div>
-        <StatusDot status={status} marketState={quote?.marketState} />
-      </div>
 
-      <div className="flex items-baseline justify-between gap-2">
-        <div className="font-mono text-3xl tabular-nums">
-          {quote ? priceFmt.format(quote.price) : <span>—</span>}
+        <div className="min-w-0 flex-1">
+          {chartContent ?? (
+            <StockChart
+              data={history.data ?? []}
+              className="h-12"
+              interactive={false}
+            />
+          )}
         </div>
-        {quote?.change !== null && quote?.change !== undefined && (
-          <div
-            className={cn(
-              "font-mono text-sm tabular-nums",
-              positive ? "text-emerald-500" : "text-red-500",
-            )}
-          >
-            {positive ? "+" : ""}
-            {quote.change.toFixed(2)}
-            {quote.changePercent !== null && (
-              <span className="ml-1">
-                ({positive ? "+" : ""}
-                {quote.changePercent.toFixed(2)}%)
-              </span>
-            )}
+
+        <div className="shrink-0 text-right">
+          <div className="font-mono text-sm font-bold tabular-nums">
+            {quote ? priceFmt.format(quote.price) : "—"}
           </div>
-        )}
+          <RegularPercentBadge value={regularChangePercent} />
+          <ExtendedHoursChange quote={quote} />
+        </div>
+
+        <button
+          type="button"
+          onClick={onRemove}
+          className="text-muted-foreground hover:text-foreground shrink-0 px-1 text-xs opacity-0 transition-opacity group-hover:opacity-100"
+          aria-label={`Remove ${symbol}`}
+        >
+          ✕
+        </button>
       </div>
 
-      <div className="border-border/60 bg-background/60 overflow-hidden rounded-md border">
-        {history.isLoading ? (
-          <div className="text-muted-foreground flex h-24 items-center justify-center text-xs">
-            loading
-          </div>
-        ) : history.isError ? (
-          <div className="text-muted-foreground flex h-24 items-center justify-center text-xs">
-            error
-          </div>
-        ) : (
-          <StockChart data={history.data ?? []} />
-        )}
-      </div>
+      {/* ── Desktop: full card ── */}
+      <div className="bg-muted/40 hover:bg-muted/60 relative hidden flex-col gap-3 rounded-lg border p-4 transition-colors lg:flex">
+        <button
+          type="button"
+          onClick={onRemove}
+          className="text-muted-foreground hover:text-foreground absolute top-3 right-3 text-xs"
+          aria-label={`Stop watching ${symbol}`}
+        >
+          ✕
+        </button>
 
-      <div className="flex flex-wrap gap-1">
+        <div className="flex items-baseline justify-between gap-2 pr-6">
+          <div>
+            <div className="text-lg font-bold">{symbol}</div>
+            {quote?.shortName && (
+              <div className="text-muted-foreground truncate text-xs">
+                {quote.shortName}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-baseline justify-between gap-2">
+          <div className="font-mono text-3xl tabular-nums">
+            {quote ? priceFmt.format(quote.price) : <span>—</span>}
+          </div>
+          <div className="shrink-0 text-right">
+            {regularChange != null && (
+              <div
+                className={cn(
+                  "font-mono text-sm tabular-nums",
+                  regularPositive ? "text-semantic-up" : "text-semantic-down",
+                )}
+              >
+                {formatSignedNumber(regularChange)}
+                {regularChangePercent != null && (
+                  <span className="ml-1">
+                    ({formatSignedPercent(regularChangePercent)})
+                  </span>
+                )}
+              </div>
+            )}
+            <ExtendedHoursChange quote={quote} className="mt-1" />
+          </div>
+        </div>
+
+        <div className="border-border/60 bg-background/60 overflow-hidden rounded-md border">
+          {chartContent ?? <StockChart data={history.data ?? []} />}
+        </div>
+      </div>
+    </>
+  );
+}
+
+function GlobalRangeSelector({
+  range,
+  onRangeChange,
+}: {
+  range: HistoryRange;
+  onRangeChange: (range: HistoryRange) => void;
+}) {
+  return (
+    <div className="mb-4">
+      <select
+        value={range}
+        onChange={(event) => onRangeChange(event.target.value as HistoryRange)}
+        aria-label="Chart interval"
+        className="border-border bg-background text-foreground h-10 w-full rounded-md border px-3 font-mono text-sm lg:hidden"
+      >
+        {CHART_RANGES.map((nextRange) => (
+          <option key={nextRange} value={nextRange}>
+            {nextRange}
+          </option>
+        ))}
+      </select>
+
+      <div className="hidden flex-wrap gap-1 lg:flex">
         {CHART_RANGES.map((nextRange) => (
           <button
             key={nextRange}
             type="button"
-            onClick={() => setRange(nextRange)}
+            onClick={() => onRangeChange(nextRange)}
             className={cn(
               "text-muted-foreground hover:bg-background hover:text-foreground rounded px-2 py-1 text-[11px] font-medium transition-colors",
               range === nextRange && "bg-background text-foreground shadow-xs",
@@ -207,36 +266,52 @@ function TickerCard({
   );
 }
 
-function StatusDot({
-  status,
-  marketState,
-}: {
-  status: string;
-  marketState?: Quote["marketState"];
-}) {
-  const label =
-    status === "pending"
-      ? "connecting"
-      : status === "connecting"
-        ? "connecting"
-        : status === "error"
-          ? "error"
-          : marketState
-            ? marketState.toLowerCase()
-            : "live";
-  const color =
-    status === "error"
-      ? "bg-red-500"
-      : marketState === "REGULAR"
-        ? "bg-emerald-500 animate-pulse"
-        : marketState === "CLOSED"
-          ? "bg-zinc-500"
-          : "bg-amber-500";
+function RegularPercentBadge({ value }: { value?: number | null }) {
+  if (value == null) return null;
 
   return (
-    <div className="text-muted-foreground flex items-center gap-1.5 text-xs">
-      <span className={cn("h-2 w-2 rounded-full", color)} />
-      {label}
+    <span
+      className={cn(
+        "mt-0.5 inline-block rounded-sm px-2 py-0.5 font-mono text-xs font-semibold text-white tabular-nums",
+        value >= 0 ? "bg-semantic-up" : "bg-semantic-down",
+      )}
+    >
+      {formatSignedPercent(value)}
+    </span>
+  );
+}
+
+function ExtendedHoursChange({
+  quote,
+  className,
+}: {
+  quote?: Quote;
+  className?: string;
+}) {
+  const extended = quote?.extendedHours;
+  if (extended?.changePercent == null) return null;
+
+  return (
+    <div
+      className={cn(
+        "flex items-center justify-end gap-1 font-mono text-xs tabular-nums",
+        extended.changePercent >= 0 ? "text-semantic-up" : "text-semantic-down",
+        className,
+      )}
+      title={`${extended.session === "post" ? "After-hours" : "Pre-market"} change`}
+    >
+      <span className="bg-chart-post/20 text-chart-post inline-flex size-4 items-center justify-center rounded-full">
+        <Moon className="size-2.5" aria-hidden="true" />
+      </span>
+      <span>{formatSignedPercent(extended.changePercent)}</span>
     </div>
   );
+}
+
+function formatSignedPercent(value: number) {
+  return `${value >= 0 ? "+" : ""}${value.toFixed(2)}%`;
+}
+
+function formatSignedNumber(value: number) {
+  return `${value >= 0 ? "+" : ""}${value.toFixed(2)}`;
 }

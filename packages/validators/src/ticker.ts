@@ -15,6 +15,17 @@ export const Quote = z.object({
   price: z.number(),
   change: z.number().nullable(),
   changePercent: z.number().nullable(),
+  regularPrice: z.number(),
+  regularChange: z.number().nullable(),
+  regularChangePercent: z.number().nullable(),
+  extendedHours: z
+    .object({
+      session: z.enum(["pre", "post"]),
+      price: z.number(),
+      change: z.number().nullable(),
+      changePercent: z.number().nullable(),
+    })
+    .nullable(),
   marketState: MarketState,
   currency: z.string().nullable(),
   shortName: z.string().nullable(),

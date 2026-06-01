@@ -12,6 +12,7 @@ import {
   BaselineSeries,
   ColorType,
   createChart,
+  CrosshairMode,
   LineStyle,
 } from "lightweight-charts";
 
@@ -39,9 +40,11 @@ interface HoverState {
 export function StockChart({
   data,
   className,
+  interactive = true,
 }: {
   data: StockChartBar[];
   className?: string;
+  interactive?: boolean;
 }) {
   const { resolvedTheme } = useTheme();
   const [hover, setHover] = useState<HoverState | null>(null);
@@ -60,7 +63,12 @@ export function StockChart({
   );
   const isEod = useMemo(() => {
     if (data.length < 2) return false;
-    const gap = (data[1]!.time - data[0]!.time);
+    const [first, second] = data as [
+      StockChartBar,
+      StockChartBar,
+      ...StockChartBar[],
+    ];
+    const gap = second.time - first.time;
     return gap >= 12 * 3600; // >= 12 h between bars → daily/weekly/monthly
   }, [data]);
 
@@ -96,19 +104,25 @@ export function StockChart({
         horzLines: { visible: false },
         vertLines: { visible: false },
       },
-      crosshair: {
-        horzLine: {
-          color: "rgba(124, 130, 138, 0.45)",
-          labelVisible: false,
-          visible: true,
-        },
-        vertLine: {
-          color: "rgba(124, 130, 138, 0.55)",
-          labelVisible: false,
-          style: LineStyle.Dashed,
-          visible: true,
-        },
-      },
+      crosshair: interactive
+        ? {
+            mode: CrosshairMode.Magnet,
+            horzLine: {
+              color: "rgba(124, 130, 138, 0.45)",
+              labelVisible: false,
+              visible: true,
+            },
+            vertLine: {
+              color: "rgba(124, 130, 138, 0.55)",
+              labelVisible: false,
+              style: LineStyle.Dashed,
+              visible: true,
+            },
+          }
+        : {
+            horzLine: { visible: false },
+            vertLine: { visible: false },
+          },
       leftPriceScale: { visible: false },
       rightPriceScale: { visible: false },
       timeScale: {
@@ -121,7 +135,7 @@ export function StockChart({
 
     const series = chart.addSeries(BaselineSeries, {
       baseValue: { type: "price", price: 0 },
-      lineWidth: 2,
+      lineWidth: interactive ? 2 : 1,
       topLineColor: upColor,
       bottomLineColor: downColor,
       topFillColor1: "rgba(5, 177, 105, 0.24)",
@@ -146,6 +160,12 @@ export function StockChart({
       }
 
       const y = series.priceToCoordinate(datum.value);
+      const x = chart.timeScale().timeToCoordinate(datum.time);
+      if (x === null || y === null) {
+        setHover(null);
+        return;
+      }
+
       const timeValue = typeof datum.time === "number" ? datum.time : null;
       const bar = timeValue ? barsByTimeRef.current.get(timeValue) : undefined;
       const startPrice = barsByTimeRef.current.values().next().value?.close;
@@ -158,24 +178,28 @@ export function StockChart({
         : "";
 
       setHover({
-        x: point.x,
-        y: y ?? point.y,
+        x,
+        y,
         price: datum.value,
         time: timeLabel,
         positive: startPrice === undefined ? true : datum.value >= startPrice,
       });
     };
 
-    chart.subscribeCrosshairMove(handleCrosshairMove);
+    if (interactive) {
+      chart.subscribeCrosshairMove(handleCrosshairMove);
+    }
 
     return () => {
-      chart.unsubscribeCrosshairMove(handleCrosshairMove);
+      if (interactive) {
+        chart.unsubscribeCrosshairMove(handleCrosshairMove);
+      }
       chart.remove();
       chartRef.current = null;
       seriesRef.current = null;
       startLineRef.current = null;
     };
-  }, [data.length, resolvedTheme, isEod, dateFormatter]);
+  }, [data.length, resolvedTheme, isEod, dateFormatter, interactive]);
 
   useEffect(() => {
     const series = seriesRef.current;
@@ -221,7 +245,7 @@ export function StockChart({
   return (
     <div className={cn("relative h-24 w-full", className)}>
       <div ref={containerRef} className="h-full w-full" />
-      {hover && (
+      {interactive && hover && (
         <>
           <div
             className={cn(

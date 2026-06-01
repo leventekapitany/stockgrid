@@ -174,7 +174,7 @@ export class StockPoller implements MarketDataHandle {
           if (quote.marketState !== "CLOSED") allClosed = false;
           const prev = this.cache.get(quote.symbol);
           this.cache.set(quote.symbol, quote);
-          if (!prev || prev.price !== quote.price) {
+          if (!prev || hasQuoteChanged(prev, quote)) {
             this.fanout(quote);
           }
         }
@@ -320,38 +320,60 @@ interface RawQuote {
 
 function toQuote(raw: RawQuote): Quote | null {
   const marketState = normalizeMarketState(raw.marketState);
-  let price: number | undefined;
-  let change: number | undefined;
-  let changePercent: number | undefined;
+  const extendedHours = toExtendedHours(raw, marketState);
+  const price = extendedHours?.price ?? raw.regularMarketPrice;
 
-  if (marketState === "PRE" || marketState === "PREPRE") {
-    price = raw.preMarketPrice ?? raw.regularMarketPrice;
-    change = raw.preMarketChange ?? raw.regularMarketChange;
-    changePercent =
-      raw.preMarketChangePercent ?? raw.regularMarketChangePercent;
-  } else if (marketState === "POST" || marketState === "POSTPOST") {
-    price = raw.postMarketPrice ?? raw.regularMarketPrice;
-    change = raw.postMarketChange ?? raw.regularMarketChange;
-    changePercent =
-      raw.postMarketChangePercent ?? raw.regularMarketChangePercent;
-  } else {
-    price = raw.regularMarketPrice;
-    change = raw.regularMarketChange;
-    changePercent = raw.regularMarketChangePercent;
-  }
-
-  if (price === undefined) return null;
+  if (price === undefined || raw.regularMarketPrice === undefined) return null;
 
   return {
     symbol: raw.symbol,
     price,
-    change: change ?? null,
-    changePercent: changePercent ?? null,
+    change: raw.regularMarketChange ?? null,
+    changePercent: raw.regularMarketChangePercent ?? null,
+    regularPrice: raw.regularMarketPrice,
+    regularChange: raw.regularMarketChange ?? null,
+    regularChangePercent: raw.regularMarketChangePercent ?? null,
+    extendedHours,
     marketState,
     currency: raw.currency ?? null,
     shortName: raw.shortName ?? null,
     timestamp: Date.now(),
   };
+}
+
+function toExtendedHours(raw: RawQuote, marketState: MarketState) {
+  if (marketState === "PRE" || marketState === "PREPRE") {
+    if (raw.preMarketPrice === undefined) return null;
+    return {
+      session: "pre" as const,
+      price: raw.preMarketPrice,
+      change: raw.preMarketChange ?? null,
+      changePercent: raw.preMarketChangePercent ?? null,
+    };
+  }
+
+  if (marketState === "POST" || marketState === "POSTPOST") {
+    if (raw.postMarketPrice === undefined) return null;
+    return {
+      session: "post" as const,
+      price: raw.postMarketPrice,
+      change: raw.postMarketChange ?? null,
+      changePercent: raw.postMarketChangePercent ?? null,
+    };
+  }
+
+  return null;
+}
+
+function hasQuoteChanged(prev: Quote, next: Quote) {
+  return (
+    prev.price !== next.price ||
+    prev.change !== next.change ||
+    prev.changePercent !== next.changePercent ||
+    prev.extendedHours?.price !== next.extendedHours?.price ||
+    prev.extendedHours?.change !== next.extendedHours?.change ||
+    prev.extendedHours?.changePercent !== next.extendedHours?.changePercent
+  );
 }
 
 function normalizeMarketState(s: string | undefined): MarketState {
