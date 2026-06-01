@@ -14,7 +14,7 @@ export default defineConfig({
       projects: ["./tsconfig.json"],
     }),
     nitro({
-      preset: "cloudflare_module",
+      preset: process.env.NITRO_PRESET ?? "cloudflare_module",
       compatibilityDate: "2026-05-11",
       cloudflare: {
         nodeCompat: true,
