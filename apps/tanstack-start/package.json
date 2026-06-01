@@ -20,6 +20,7 @@
     "@stock/api": "workspace:*",
     "@stock/auth": "workspace:*",
     "@stock/db": "workspace:*",
+    "@stock/market-data": "workspace:*",
     "@stock/ui": "workspace:*",
     "@stock/validators": "workspace:*",
     "@t3-oss/env-core": "^0.13.8",

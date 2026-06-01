@@ -29,6 +29,8 @@ export interface StockChartBar {
   session: "regular" | "post";
 }
 
+type ChartTimeDisplayMode = "intraday" | "calendar";
+
 interface HoverState {
   x: number;
   y: number;
@@ -41,10 +43,12 @@ export function StockChart({
   data,
   className,
   interactive = true,
+  timeDisplayMode = "intraday",
 }: {
   data: StockChartBar[];
   className?: string;
   interactive?: boolean;
+  timeDisplayMode?: ChartTimeDisplayMode;
 }) {
   const { resolvedTheme } = useTheme();
   const [hover, setHover] = useState<HoverState | null>(null);
@@ -61,16 +65,7 @@ export function StockChart({
       }),
     [],
   );
-  const isEod = useMemo(() => {
-    if (data.length < 2) return false;
-    const [first, second] = data as [
-      StockChartBar,
-      StockChartBar,
-      ...StockChartBar[],
-    ];
-    const gap = second.time - first.time;
-    return gap >= 12 * 3600; // >= 12 h between bars → daily/weekly/monthly
-  }, [data]);
+  const isCalendarTime = timeDisplayMode === "calendar";
 
   const dateFormatter = useMemo(
     () =>
@@ -172,7 +167,7 @@ export function StockChart({
 
       const date = bar ? new Date(bar.time * 1000) : null;
       const timeLabel = date
-        ? isEod
+        ? isCalendarTime
           ? dateFormatter.format(date)
           : format(date, "HH:mm")
         : "";
@@ -199,7 +194,7 @@ export function StockChart({
       seriesRef.current = null;
       startLineRef.current = null;
     };
-  }, [data.length, resolvedTheme, isEod, dateFormatter, interactive]);
+  }, [data.length, resolvedTheme, isCalendarTime, dateFormatter, interactive]);
 
   useEffect(() => {
     const series = seriesRef.current;

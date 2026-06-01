@@ -1,0 +1,41 @@
+{
+  "name": "@stock/market-data",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./src/index.ts"
+    },
+    "./range-policy": {
+      "types": "./dist/range-policy.d.ts",
+      "default": "./src/range-policy.ts"
+    },
+    "./yahoo": {
+      "types": "./dist/yahoo.d.ts",
+      "default": "./src/yahoo.ts"
+    }
+  },
+  "license": "MIT",
+  "scripts": {
+    "build": "tsc",
+    "clean": "git clean -xdf .cache .turbo dist node_modules",
+    "dev": "tsc",
+    "format": "prettier --check . --ignore-path ../../.gitignore",
+    "lint": "eslint --flag unstable_native_nodejs_ts_config",
+    "typecheck": "tsc --noEmit --emitDeclarationOnly false"
+  },
+  "dependencies": {
+    "@stock/validators": "workspace:*",
+    "yahoo-finance2": "^3.14.0"
+  },
+  "devDependencies": {
+    "@stock/eslint-config": "workspace:*",
+    "@stock/prettier-config": "workspace:*",
+    "@stock/tsconfig": "workspace:*",
+    "eslint": "catalog:",
+    "prettier": "catalog:",
+    "typescript": "catalog:"
+  },
+  "prettier": "@stock/prettier-config"
+}

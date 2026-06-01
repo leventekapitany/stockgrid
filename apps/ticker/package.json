@@ -16,11 +16,11 @@
     "@stock/api": "workspace:*",
     "@stock/auth": "workspace:*",
     "@stock/db": "workspace:*",
+    "@stock/market-data": "workspace:*",
     "@stock/validators": "workspace:*",
     "@trpc/server": "catalog:",
     "superjson": "2.2.3",
     "ws": "^8.18.0",
-    "yahoo-finance2": "^3.14.0",
     "zod": "catalog:"
   },
   "devDependencies": {

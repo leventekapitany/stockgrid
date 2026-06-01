@@ -42,6 +42,21 @@ export const WatchInput = z.object({
 });
 export type WatchInput = z.infer<typeof WatchInput>;
 
+export const SearchInput = z.object({
+  query: z.string().trim().min(1).max(80),
+});
+export type SearchInput = z.infer<typeof SearchInput>;
+
+export const SearchResult = z.object({
+  symbol: z.string(),
+  name: z.string().nullable(),
+  exchange: z.string().nullable(),
+  type: z.string().nullable(),
+  region: z.string().nullable(),
+  currency: z.string().nullable(),
+});
+export type SearchResult = z.infer<typeof SearchResult>;
+
 export const HistoryRange = z.enum([
   "1D",
   "5D",

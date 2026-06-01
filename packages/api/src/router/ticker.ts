@@ -3,11 +3,25 @@ import type { TRPCRouterRecord } from "@trpc/server";
 import { TRPCError } from "@trpc/server";
 
 import type { Quote } from "@stock/validators";
-import { HistoryInput, WatchInput } from "@stock/validators";
+import { HistoryInput, SearchInput, WatchInput } from "@stock/validators";
 
 import { publicProcedure } from "../trpc";
 
 export const tickerRouter = {
+  search: publicProcedure.input(SearchInput).query(async ({ input, ctx }) => {
+    const marketData = ctx.marketData;
+    if (!marketData) {
+      throw new TRPCError({
+        code: "PRECONDITION_FAILED",
+        message: "Ticker market data is not available on this server",
+      });
+    }
+
+    if (input.query.length < 2) return [];
+
+    return marketData.search(input.query);
+  }),
+
   history: publicProcedure.input(HistoryInput).query(async ({ input, ctx }) => {
     const marketData = ctx.marketData;
     if (!marketData) {

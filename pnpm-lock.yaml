@@ -237,6 +237,9 @@ importers:
       '@stock/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@stock/market-data':
+        specifier: workspace:*
+        version: link:../../packages/market-data
       '@stock/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -352,6 +355,9 @@ importers:
       '@stock/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@stock/market-data':
+        specifier: workspace:*
+        version: link:../../packages/market-data
       '@stock/validators':
         specifier: workspace:*
         version: link:../../packages/validators
@@ -364,9 +370,6 @@ importers:
       ws:
         specifier: ^8.18.0
         version: 8.18.3(bufferutil@4.0.8)(utf-8-validate@6.0.4)
-      yahoo-finance2:
-        specifier: ^3.14.0
-        version: 3.14.0
       zod:
         specifier: 'catalog:'
         version: 4.1.12
@@ -509,6 +512,34 @@ importers:
       drizzle-kit:
         specifier: ^0.31.5
         version: 0.31.5
+      eslint:
+        specifier: 'catalog:'
+        version: 9.38.0(jiti@2.6.1)
+      prettier:
+        specifier: 'catalog:'
+        version: 3.6.2
+      typescript:
+        specifier: 'catalog:'
+        version: 5.9.3
+
+  packages/market-data:
+    dependencies:
+      '@stock/validators':
+        specifier: workspace:*
+        version: link:../validators
+      yahoo-finance2:
+        specifier: ^3.14.0
+        version: 3.14.0
+    devDependencies:
+      '@stock/eslint-config':
+        specifier: workspace:*
+        version: link:../../tooling/eslint
+      '@stock/prettier-config':
+        specifier: workspace:*
+        version: link:../../tooling/prettier
+      '@stock/tsconfig':
+        specifier: workspace:*
+        version: link:../../tooling/typescript
       eslint:
         specifier: 'catalog:'
         version: 9.38.0(jiti@2.6.1)

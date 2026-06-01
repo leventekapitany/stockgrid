@@ -1,71 +1,32 @@
-import YahooFinance from "yahoo-finance2";
-
 import type { MarketDataHandle } from "@stock/api";
 import type {
   HistoryBar,
   HistoryRange,
-  MarketState,
   Quote,
+  SearchResult,
 } from "@stock/validators";
-
-const yahooFinance = new YahooFinance({
-  suppressNotices: ["yahooSurvey", "ripHistorical"],
-});
+import { getHistoryRangeConfig } from "@stock/market-data/range-policy";
+import {
+  hasQuoteChanged,
+  YahooMarketDataAdapter,
+} from "@stock/market-data/yahoo";
 
 const ACTIVE_INTERVAL_MS = 1000;
 const IDLE_INTERVAL_MS = 30_000;
 const BATCH_SIZE = 50;
 const HISTORY_CACHE_MAX = 200;
 
-const RANGE_CONFIG = {
-  "1D": { days: 2, interval: "5m", ttlMs: 5 * 60_000 },
-  "5D": { days: 7, interval: "15m", ttlMs: 5 * 60_000 },
-  "1M": { days: 35, interval: "1d", ttlMs: 30 * 60_000 },
-  "3M": { days: 100, interval: "1d", ttlMs: 30 * 60_000 },
-  "6M": { days: 200, interval: "1d", ttlMs: 60 * 60_000 },
-  "1Y": { days: 370, interval: "1d", ttlMs: 60 * 60_000 },
-  "5Y": { days: 5 * 370, interval: "1wk", ttlMs: 60 * 60_000 },
-  MAX: { days: 50 * 370, interval: "1mo", ttlMs: 60 * 60_000 },
-} as const satisfies Record<
-  HistoryRange,
-  {
-    days: number;
-    interval: "5m" | "15m" | "1d" | "1wk" | "1mo";
-    ttlMs: number;
-  }
->;
-
 type Subscriber = (quote: Quote) => void;
+
+interface MarketDataProvider {
+  quotes(symbols: string[]): Promise<Quote[]>;
+  search(query: string): Promise<SearchResult[]>;
+  history(symbol: string, range: HistoryRange): Promise<HistoryBar[]>;
+}
 
 interface HistoryCacheEntry {
   expiresAt: number;
   bars: HistoryBar[];
-}
-
-interface RawChartQuote {
-  date: Date;
-  high: number | null;
-  low: number | null;
-  open: number | null;
-  close: number | null;
-  volume: number | null;
-  adjclose?: number | null;
-}
-
-interface RawTradingPeriod {
-  start: Date;
-  end: Date;
-}
-
-interface RawChartResult {
-  meta: {
-    gmtoffset?: number;
-    currentTradingPeriod?: {
-      regular?: RawTradingPeriod;
-      post?: RawTradingPeriod;
-    };
-  };
-  quotes: RawChartQuote[];
 }
 
 export class StockPoller implements MarketDataHandle {
@@ -76,6 +37,10 @@ export class StockPoller implements MarketDataHandle {
   private timer: ReturnType<typeof setTimeout> | null = null;
   private inFlight = false;
   private currentDelay = ACTIVE_INTERVAL_MS;
+
+  constructor(
+    private readonly provider: MarketDataProvider = new YahooMarketDataAdapter(),
+  ) {}
 
   subscribe(symbol: string, emit: Subscriber): () => void {
     let subs = this.symbols.get(symbol);
@@ -104,6 +69,10 @@ export class StockPoller implements MarketDataHandle {
     return this.cache.get(symbol);
   }
 
+  search(query: string): Promise<SearchResult[]> {
+    return this.provider.search(query);
+  }
+
   async history(symbol: string, range: HistoryRange): Promise<HistoryBar[]> {
     const key = `${symbol}:${range}`;
     const now = Date.now();
@@ -118,7 +87,7 @@ export class StockPoller implements MarketDataHandle {
     if (existing) return existing;
 
     const request = this.fetchHistory(symbol, range).then((bars) => {
-      const config = RANGE_CONFIG[range];
+      const config = getHistoryRangeConfig(range);
       this.historyCache.set(key, {
         bars,
         expiresAt: Date.now() + config.ttlMs,
@@ -165,12 +134,8 @@ export class StockPoller implements MarketDataHandle {
     try {
       for (let i = 0; i < symbols.length; i += BATCH_SIZE) {
         const chunk = symbols.slice(i, i + BATCH_SIZE);
-        const quotes = await yahooFinance.quote(chunk, {
-          return: "array",
-        });
-        for (const raw of quotes) {
-          const quote = toQuote(raw as RawQuote);
-          if (!quote) continue;
+        const quotes = await this.provider.quotes(chunk);
+        for (const quote of quotes) {
           if (quote.marketState !== "CLOSED") allClosed = false;
           const prev = this.cache.get(quote.symbol);
           this.cache.set(quote.symbol, quote);
@@ -204,23 +169,7 @@ export class StockPoller implements MarketDataHandle {
     symbol: string,
     range: HistoryRange,
   ): Promise<HistoryBar[]> {
-    const config = RANGE_CONFIG[range];
-    const period2 = new Date();
-    const period1 = new Date(
-      period2.getTime() - config.days * 24 * 60 * 60_000,
-    );
-
-    const result = (await yahooFinance.chart(symbol, {
-      period1,
-      period2,
-      interval: config.interval,
-      includePrePost: true,
-      return: "array",
-    })) as RawChartResult;
-
-    return result.quotes
-      .map((quote) => toHistoryBar(quote, result, config.interval))
-      .filter((bar): bar is HistoryBar => Boolean(bar));
+    return this.provider.history(symbol, range);
   }
 
   private pruneHistoryCache() {
@@ -229,164 +178,6 @@ export class StockPoller implements MarketDataHandle {
       if (!oldestKey) return;
       this.historyCache.delete(oldestKey);
     }
-  }
-}
-
-function toHistoryBar(
-  quote: RawChartQuote,
-  result: RawChartResult,
-  interval: (typeof RANGE_CONFIG)[HistoryRange]["interval"],
-): HistoryBar | null {
-  if (
-    quote.open === null ||
-    quote.high === null ||
-    quote.low === null ||
-    quote.close === null
-  ) {
-    return null;
-  }
-
-  const adjusted = adjustBar({
-    open: quote.open,
-    high: quote.high,
-    low: quote.low,
-    close: quote.close,
-    adjclose: quote.adjclose,
-  });
-
-  return {
-    time: Math.floor(quote.date.getTime() / 1000),
-    ...adjusted,
-    volume: quote.volume,
-    session: isPostMarket(quote.date, result, interval) ? "post" : "regular",
-  };
-}
-
-function adjustBar(quote: {
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-  adjclose?: number | null;
-}) {
-  const ratio =
-    quote.adjclose && quote.close && quote.close !== 0
-      ? quote.adjclose / quote.close
-      : 1;
-
-  return {
-    open: quote.open * ratio,
-    high: quote.high * ratio,
-    low: quote.low * ratio,
-    close: quote.close * ratio,
-  };
-}
-
-function isPostMarket(
-  date: Date,
-  result: RawChartResult,
-  interval: (typeof RANGE_CONFIG)[HistoryRange]["interval"],
-) {
-  if (interval === "1d" || interval === "1wk" || interval === "1mo") {
-    return false;
-  }
-
-  const post = result.meta.currentTradingPeriod?.post;
-  if (post && date >= post.start && date < post.end) return true;
-
-  const gmtoffsetSeconds = result.meta.gmtoffset ?? 0;
-  const exchangeDate = new Date(date.getTime() + gmtoffsetSeconds * 1000);
-  const minutes =
-    exchangeDate.getUTCHours() * 60 + exchangeDate.getUTCMinutes();
-
-  return minutes >= 16 * 60 && minutes < 20 * 60;
-}
-
-interface RawQuote {
-  symbol: string;
-  marketState?: string;
-  regularMarketPrice?: number;
-  preMarketPrice?: number;
-  postMarketPrice?: number;
-  regularMarketChange?: number;
-  regularMarketChangePercent?: number;
-  preMarketChange?: number;
-  preMarketChangePercent?: number;
-  postMarketChange?: number;
-  postMarketChangePercent?: number;
-  currency?: string;
-  shortName?: string;
-}
-
-function toQuote(raw: RawQuote): Quote | null {
-  const marketState = normalizeMarketState(raw.marketState);
-  const extendedHours = toExtendedHours(raw, marketState);
-  const price = extendedHours?.price ?? raw.regularMarketPrice;
-
-  if (price === undefined || raw.regularMarketPrice === undefined) return null;
-
-  return {
-    symbol: raw.symbol,
-    price,
-    change: raw.regularMarketChange ?? null,
-    changePercent: raw.regularMarketChangePercent ?? null,
-    regularPrice: raw.regularMarketPrice,
-    regularChange: raw.regularMarketChange ?? null,
-    regularChangePercent: raw.regularMarketChangePercent ?? null,
-    extendedHours,
-    marketState,
-    currency: raw.currency ?? null,
-    shortName: raw.shortName ?? null,
-    timestamp: Date.now(),
-  };
-}
-
-function toExtendedHours(raw: RawQuote, marketState: MarketState) {
-  if (marketState === "PRE" || marketState === "PREPRE") {
-    if (raw.preMarketPrice === undefined) return null;
-    return {
-      session: "pre" as const,
-      price: raw.preMarketPrice,
-      change: raw.preMarketChange ?? null,
-      changePercent: raw.preMarketChangePercent ?? null,
-    };
-  }
-
-  if (marketState === "POST" || marketState === "POSTPOST") {
-    if (raw.postMarketPrice === undefined) return null;
-    return {
-      session: "post" as const,
-      price: raw.postMarketPrice,
-      change: raw.postMarketChange ?? null,
-      changePercent: raw.postMarketChangePercent ?? null,
-    };
-  }
-
-  return null;
-}
-
-function hasQuoteChanged(prev: Quote, next: Quote) {
-  return (
-    prev.price !== next.price ||
-    prev.change !== next.change ||
-    prev.changePercent !== next.changePercent ||
-    prev.extendedHours?.price !== next.extendedHours?.price ||
-    prev.extendedHours?.change !== next.extendedHours?.change ||
-    prev.extendedHours?.changePercent !== next.extendedHours?.changePercent
-  );
-}
-
-function normalizeMarketState(s: string | undefined): MarketState {
-  switch (s) {
-    case "PRE":
-    case "REGULAR":
-    case "POST":
-    case "PREPRE":
-    case "POSTPOST":
-    case "CLOSED":
-      return s;
-    default:
-      return "CLOSED";
   }
 }
 
