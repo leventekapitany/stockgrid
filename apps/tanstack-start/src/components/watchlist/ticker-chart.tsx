@@ -1,3 +1,4 @@
+import type { StockChartHover } from "@stock/ui/stock-chart";
 import type { HistoryBar } from "@stock/validators";
 import { StockChart } from "@stock/ui/stock-chart";
 
@@ -12,11 +13,13 @@ export function TickerChart({
   chartTimeDisplayMode,
   className,
   interactive = true,
+  onHoverChange,
 }: {
   history: HistoryQueryState;
   chartTimeDisplayMode: "intraday" | "calendar";
   className?: string;
   interactive?: boolean;
+  onHoverChange?: (hover: StockChartHover | null) => void;
 }) {
   if (history.isLoading) {
     return (
@@ -42,6 +45,7 @@ export function TickerChart({
       className={className}
       interactive={interactive}
       timeDisplayMode={chartTimeDisplayMode}
+      onHoverChange={onHoverChange}
     />
   );
 }

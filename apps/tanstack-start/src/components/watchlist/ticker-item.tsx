@@ -1,11 +1,11 @@
-import { useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSubscription } from "@trpc/tanstack-react-query";
 
+import type { StockChartHover } from "@stock/ui/stock-chart";
 import type { HistoryRange } from "@stock/validators";
 
 import { useTRPC } from "~/lib/trpc";
-
 import { TickerItemDesktop, TickerItemMobile } from "./ticker-item-layouts";
 
 export function TickerItem({
@@ -24,12 +24,48 @@ export function TickerItem({
     trpc.ticker.watch.subscriptionOptions({ symbol }),
   );
   const history = useQuery(trpc.ticker.history.queryOptions({ symbol, range }));
+  const [chartHoverState, setChartHoverState] = useState<{
+    range: HistoryRange;
+    hover: StockChartHover | null;
+  } | null>(null);
 
   const quote = sub.data;
   const regularChange = quote?.regularChange ?? quote?.change;
   const regularChangePercent =
     quote?.regularChangePercent ?? quote?.changePercent;
-  const regularPositive = (regularChange ?? regularChangePercent ?? 0) >= 0;
+
+  const rangeChange = useMemo(() => {
+    const bars = history.data;
+    const first = bars?.[0];
+    const last = bars?.at(-1);
+    if (!first || !last) return null;
+
+    const change = last.close - first.close;
+    return {
+      change,
+      changePercent: first.close === 0 ? null : (change / first.close) * 100,
+    };
+  }, [history.data]);
+
+  const chartHover =
+    chartHoverState?.range === range ? chartHoverState.hover : null;
+
+  const updateChartHover = useCallback(
+    (hover: StockChartHover | null) => {
+      setChartHoverState({ range, hover });
+    },
+    [range],
+  );
+
+  const displayedPrice = chartHover?.price ?? quote?.price;
+  const displayedChange =
+    chartHover?.change ?? rangeChange?.change ?? regularChange;
+  const displayedChangePercent =
+    chartHover?.changePercent ??
+    rangeChange?.changePercent ??
+    regularChangePercent;
+  const displayedPositive =
+    (displayedChange ?? displayedChangePercent ?? 0) >= 0;
 
   const priceFmt = useMemo(
     () =>
@@ -45,6 +81,12 @@ export function TickerItem({
     symbol,
     quote,
     priceFmt,
+    displayedPrice,
+    displayedChange,
+    displayedChangePercent,
+    displayedPositive,
+    chartHover,
+    onChartHoverChange: updateChartHover,
     history,
     chartTimeDisplayMode,
     onRemove,
@@ -52,16 +94,8 @@ export function TickerItem({
 
   return (
     <>
-      <TickerItemMobile
-        {...shared}
-        regularChangePercent={regularChangePercent}
-      />
-      <TickerItemDesktop
-        {...shared}
-        regularChange={regularChange}
-        regularChangePercent={regularChangePercent}
-        regularPositive={regularPositive}
-      />
+      <TickerItemMobile {...shared} />
+      <TickerItemDesktop {...shared} />
     </>
   );
 }

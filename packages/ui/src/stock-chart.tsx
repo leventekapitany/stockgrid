@@ -31,10 +31,19 @@ export interface StockChartBar {
 
 type ChartTimeDisplayMode = "intraday" | "calendar";
 
+export interface StockChartHover {
+  price: number;
+  change: number;
+  changePercent: number | null;
+  time: string;
+}
+
 interface HoverState {
   x: number;
   y: number;
   price: number;
+  change: number;
+  changePercent: number | null;
   time: string;
   positive: boolean;
 }
@@ -44,11 +53,13 @@ export function StockChart({
   className,
   interactive = true,
   timeDisplayMode = "intraday",
+  onHoverChange,
 }: {
   data: StockChartBar[];
   className?: string;
   interactive?: boolean;
   timeDisplayMode?: ChartTimeDisplayMode;
+  onHoverChange?: (hover: StockChartHover | null) => void;
 }) {
   const { resolvedTheme } = useTheme();
   const [hover, setHover] = useState<HoverState | null>(null);
@@ -57,14 +68,6 @@ export function StockChart({
   const seriesRef = useRef<ISeriesApi<"Baseline"> | null>(null);
   const startLineRef = useRef<IPriceLine | null>(null);
   const barsByTimeRef = useRef(new Map<number, StockChartBar>());
-  const priceFormatter = useMemo(
-    () =>
-      new Intl.NumberFormat(undefined, {
-        maximumFractionDigits: 2,
-        minimumFractionDigits: 2,
-      }),
-    [],
-  );
   const isCalendarTime = timeDisplayMode === "calendar";
 
   const dateFormatter = useMemo(
@@ -151,6 +154,7 @@ export function StockChart({
 
       if (!point || !datum || typeof datum.value !== "number") {
         setHover(null);
+        onHoverChange?.(null);
         return;
       }
 
@@ -158,12 +162,18 @@ export function StockChart({
       const x = chart.timeScale().timeToCoordinate(datum.time);
       if (x === null || y === null) {
         setHover(null);
+        onHoverChange?.(null);
         return;
       }
 
       const timeValue = typeof datum.time === "number" ? datum.time : null;
       const bar = timeValue ? barsByTimeRef.current.get(timeValue) : undefined;
       const startPrice = barsByTimeRef.current.values().next().value?.close;
+      const change = startPrice === undefined ? 0 : datum.value - startPrice;
+      const changePercent =
+        startPrice === undefined || startPrice === 0
+          ? null
+          : (change / startPrice) * 100;
 
       const date = bar ? new Date(bar.time * 1000) : null;
       const timeLabel = date
@@ -172,13 +182,20 @@ export function StockChart({
           : format(date, "HH:mm")
         : "";
 
+      const nextHover = {
+        price: datum.value,
+        change,
+        changePercent,
+        time: timeLabel,
+      };
+
       setHover({
         x,
         y,
-        price: datum.value,
-        time: timeLabel,
-        positive: startPrice === undefined ? true : datum.value >= startPrice,
+        ...nextHover,
+        positive: change >= 0,
       });
+      onHoverChange?.(nextHover);
     };
 
     if (interactive) {
@@ -193,8 +210,16 @@ export function StockChart({
       chartRef.current = null;
       seriesRef.current = null;
       startLineRef.current = null;
+      onHoverChange?.(null);
     };
-  }, [data.length, resolvedTheme, isCalendarTime, dateFormatter, interactive]);
+  }, [
+    data.length,
+    resolvedTheme,
+    isCalendarTime,
+    dateFormatter,
+    interactive,
+    onHoverChange,
+  ]);
 
   useEffect(() => {
     const series = seriesRef.current;
@@ -243,22 +268,22 @@ export function StockChart({
       {interactive && hover && (
         <>
           <div
+            className="pointer-events-none absolute top-0 right-0 bottom-0 z-10"
+            style={{
+              left: hover.x,
+              backgroundColor:
+                resolvedTheme === "dark"
+                  ? "rgba(0, 0, 0, 0.58)"
+                  : "rgba(255, 255, 255, 0.58)",
+            }}
+          />
+          <div
             className={cn(
-              "border-background pointer-events-none absolute size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2",
+              "border-background pointer-events-none absolute z-20 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2",
               hover.positive ? "bg-semantic-up" : "bg-semantic-down",
             )}
             style={{ left: hover.x, top: hover.y }}
           />
-          <div
-            className="pointer-events-none absolute z-10 -translate-x-1/2 rounded-md bg-[#16181c] px-2.5 py-1.5 text-xs font-semibold whitespace-nowrap text-white shadow-sm"
-            style={{
-              left: hover.x,
-              top: Math.max(6, hover.y - 44),
-            }}
-          >
-            {priceFormatter.format(hover.price)}{" "}
-            <span className="text-white/55">{hover.time}</span>
-          </div>
         </>
       )}
     </div>

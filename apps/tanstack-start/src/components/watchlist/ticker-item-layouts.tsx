@@ -1,27 +1,34 @@
+import type { StockChartHover } from "@stock/ui/stock-chart";
 import type { Quote } from "@stock/validators";
 import { cn } from "@stock/ui";
 
+import type { HistoryQueryState } from "./ticker-chart";
 import { ExtendedHoursChange } from "./extended-hours-change";
 import { formatSignedNumber, formatSignedPercent } from "./formatters";
 import { RegularPercentBadge } from "./regular-percent-badge";
-import type { HistoryQueryState } from "./ticker-chart";
 import { TickerChart } from "./ticker-chart";
 
 export function TickerItemMobile({
   symbol,
   quote,
   priceFmt,
+  displayedPrice,
+  displayedChangePercent,
+  chartHover,
+  onChartHoverChange,
   history,
   chartTimeDisplayMode,
-  regularChangePercent,
   onRemove,
 }: {
   symbol: string;
   quote?: Quote;
   priceFmt: Intl.NumberFormat;
+  displayedPrice?: number;
+  displayedChangePercent?: number | null;
+  chartHover: StockChartHover | null;
+  onChartHoverChange: (hover: StockChartHover | null) => void;
   history: HistoryQueryState;
   chartTimeDisplayMode: "intraday" | "calendar";
-  regularChangePercent?: number | null;
   onRemove: () => void;
 }) {
   return (
@@ -40,16 +47,18 @@ export function TickerItemMobile({
           history={history}
           chartTimeDisplayMode={chartTimeDisplayMode}
           className="h-12"
-          interactive={false}
+          onHoverChange={onChartHoverChange}
         />
       </div>
 
-      <div className="shrink-0 text-right">
+      <div className="flex min-h-14 shrink-0 flex-col items-end justify-center text-right">
         <div className="font-mono text-sm font-bold tabular-nums">
-          {quote ? priceFmt.format(quote.price) : "—"}
+          {displayedPrice != null ? priceFmt.format(displayedPrice) : "—"}
         </div>
-        <RegularPercentBadge value={regularChangePercent} />
-        <ExtendedHoursChange quote={quote} />
+        <RegularPercentBadge value={displayedChangePercent} />
+        <div className="mt-0.5 h-4">
+          {!chartHover && <ExtendedHoursChange quote={quote} />}
+        </div>
       </div>
 
       <button
@@ -68,21 +77,27 @@ export function TickerItemDesktop({
   symbol,
   quote,
   priceFmt,
+  displayedPrice,
+  displayedChange,
+  displayedChangePercent,
+  displayedPositive,
+  chartHover,
+  onChartHoverChange,
   history,
   chartTimeDisplayMode,
-  regularChange,
-  regularChangePercent,
-  regularPositive,
   onRemove,
 }: {
   symbol: string;
   quote?: Quote;
   priceFmt: Intl.NumberFormat;
+  displayedPrice?: number;
+  displayedChange?: number | null;
+  displayedChangePercent?: number | null;
+  displayedPositive: boolean;
+  chartHover: StockChartHover | null;
+  onChartHoverChange: (hover: StockChartHover | null) => void;
   history: HistoryQueryState;
   chartTimeDisplayMode: "intraday" | "calendar";
-  regularChange?: number | null;
-  regularChangePercent?: number | null;
-  regularPositive: boolean;
   onRemove: () => void;
 }) {
   return (
@@ -107,32 +122,42 @@ export function TickerItemDesktop({
         </div>
       </div>
 
-      <div className="flex items-baseline justify-between gap-2">
+      <div className="flex min-h-12 items-start justify-between gap-2">
         <div className="font-mono text-3xl tabular-nums">
-          {quote ? priceFmt.format(quote.price) : <span>—</span>}
+          {displayedPrice != null ? (
+            priceFmt.format(displayedPrice)
+          ) : (
+            <span>—</span>
+          )}
         </div>
-        <div className="shrink-0 text-right">
-          {regularChange != null && (
+        <div className="min-h-12 shrink-0 text-right">
+          {displayedChange != null && (
             <div
               className={cn(
                 "font-mono text-sm tabular-nums",
-                regularPositive ? "text-semantic-up" : "text-semantic-down",
+                displayedPositive ? "text-semantic-up" : "text-semantic-down",
               )}
             >
-              {formatSignedNumber(regularChange)}
-              {regularChangePercent != null && (
+              {formatSignedNumber(displayedChange)}
+              {displayedChangePercent != null && (
                 <span className="ml-1">
-                  ({formatSignedPercent(regularChangePercent)})
+                  ({formatSignedPercent(displayedChangePercent)})
                 </span>
               )}
             </div>
           )}
-          <ExtendedHoursChange quote={quote} className="mt-1" />
+          <div className="mt-1 h-4">
+            {!chartHover && <ExtendedHoursChange quote={quote} />}
+          </div>
         </div>
       </div>
 
       <div className="border-border/60 bg-background/60 overflow-hidden rounded-md border">
-        <TickerChart history={history} chartTimeDisplayMode={chartTimeDisplayMode} />
+        <TickerChart
+          history={history}
+          chartTimeDisplayMode={chartTimeDisplayMode}
+          onHoverChange={onChartHoverChange}
+        />
       </div>
     </div>
   );
