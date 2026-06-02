@@ -4,15 +4,23 @@
   </a>
 </p>
 
-[stockgrid.app](https://stockgrid.app) is a real-time stock watchlist with live WebSocket prices, interactive charts, Google auth, and a global poller that only fetches what someone is actually watching.
+[stockgrid.app](https://stockgrid.app) is a real-time stock watchlist with live WebSocket prices, interactive charts, Google auth, AI-powered stock search, and a global poller that only fetches what someone is actually watching.
 
-Built with TanStack Start, tRPC v11, Better Auth, Drizzle, lightweight-charts, and yahoo-finance2.
+Built with TanStack Start, tRPC v11, Better Auth, Drizzle, lightweight-charts, yahoo-finance2, and the Vercel AI SDK (Google Gemini).
 
 ## Architecture
 
 Two runtime services, one tRPC router. The web app handles SSR, Better Auth, and regular API calls. A separate ticker server runs a persistent poller and pushes live quotes over WebSocket.
 
 The client uses tRPC's `splitLink` to route `ticker.*` operations through `wsLink` to the ticker service, and everything else through `httpBatchStreamLink` to the web app.
+
+### AI stock search
+
+Signed-in users can describe a watchlist in plain language (e.g. _"top 10 financial stocks"_, _"cheapest big tech by P/E"_). The flow:
+
+1. The prompt (max 100 chars) hits the `ai.suggestStocks` tRPC mutation — a `protectedProcedure`, so it runs over HTTP with the session cookie.
+2. **Gemini (`gemini-3.1-flash-lite`)** parses it via the Vercel AI SDK's `generateObject`, returning a structured `{ symbols, sortBy, count, error }` intent (candidate tickers + how to rank them).
+3. Those candidates are verified against `yahoo-finance2` — invalid/hallucinated tickers are dropped, the rest are ranked (P/E, market cap, % change, dividend yield) and the top N are added to the watchlist.
 
 ```
 Browser
@@ -39,6 +47,7 @@ ticker service
 - **Database** — Supabase Postgres, Drizzle ORM, Postgres.js
 - **Charts** — lightweight-charts (TradingView)
 - **Market data** — yahoo-finance2 v3
+- **AI** — Vercel AI SDK (`ai` + `@ai-sdk/google`), Google Gemini `gemini-3.1-flash-lite`
 - **Validation** — Zod v4
 - **Deploy** — Cloudflare Workers (web), AWS ECS/Fargate + ALB (ticker)
 
@@ -51,9 +60,10 @@ apps/
   expo/             React Native mobile app
 
 packages/
-  api/              tRPC router definitions
+  api/              tRPC router definitions (ticker, ai, auth)
   auth/             Better Auth config + middleware
   db/               Drizzle schema + client
+  market-data/      yahoo-finance2 adapter + AI screening helper
   ui/               React components (shadcn/ui, StockChart)
   validators/       Shared Zod schemas
 
@@ -91,6 +101,7 @@ See `.env.example`. The important ones:
 | `AUTH_SECRET`                | Session signing secret (`openssl rand -base64 32`) |
 | `AUTH_URL`                   | Canonical web auth URL                             |
 | `AUTH_GOOGLE_ID` / `SECRET`  | Google OAuth credentials                           |
+| `GEMINI_API_KEY`             | Google Gemini API key for AI search (server-side)  |
 | `VITE_TICKER_WS_URL`         | Ticker WS endpoint (default `ws://localhost:4001`) |
 | `TICKER_PORT`                | Ticker service port (default `4001`)               |
 
@@ -114,6 +125,7 @@ AUTH_GOOGLE_ID=...
 AUTH_GOOGLE_SECRET=...
 AUTH_SECRET=...
 POSTGRES_URL=...
+GEMINI_API_KEY=...
 ```
 
 ### Ticker

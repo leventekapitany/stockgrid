@@ -113,14 +113,17 @@ export function StockSearchDialog({
           <DialogTitle className="flex items-center gap-2">
             Add stock
             {aiEnabled && (
-              <span
+              <button
+                type="button"
+                onClick={disableAi}
+                aria-label="Disable AI search"
                 className={cn(
-                  "rounded-full px-2 py-0.5 text-[11px] font-semibold text-white",
+                  "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold text-white transition-opacity hover:opacity-90",
                   GRADIENT,
                 )}
               >
-                AI
-              </span>
+                AI <span aria-hidden>✕</span>
+              </button>
             )}
           </DialogTitle>
           <DialogDescription>
@@ -130,76 +133,49 @@ export function StockSearchDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={submit} className="space-y-2.5 px-4 pt-4 sm:px-5">
-          {/* Search / AI prompt input — same element, gradient border when AI is on */}
-          {aiEnabled ? (
-            <div className={cn("rounded-lg p-[2px]", GRADIENT)}>
-              <input
-                autoFocus
-                value={aiPrompt}
-                maxLength={AI_SEARCH_MAX_LENGTH}
-                disabled={suggest.isPending}
-                onChange={(e) => setAiPrompt(e.target.value)}
-                placeholder="top 10 financial stocks"
-                className="bg-background placeholder:text-muted-foreground h-10 w-full rounded-[6px] px-3 text-sm outline-none disabled:opacity-60"
-              />
-            </div>
-          ) : (
-            <Input
-              autoFocus
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search stocks..."
-              className="uppercase"
-            />
-          )}
-
-          {/* Controls row */}
-          {aiEnabled ? (
-            <div className="flex items-center justify-between gap-2">
-              <button
-                type="button"
-                onClick={disableAi}
-                className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-xs font-medium transition-colors"
-              >
-                <span aria-hidden>✕</span> Disable AI
-              </button>
-              <div className="flex items-center gap-2.5">
-                <span className="text-muted-foreground text-xs tabular-nums">
-                  {aiPrompt.length}/{AI_SEARCH_MAX_LENGTH}
-                </span>
-                <Button
-                  type="submit"
-                  size="sm"
-                  disabled={!canSubmitAi}
-                  className={cn(
-                    signedIn && GRADIENT,
-                    signedIn && "border-0 text-white hover:opacity-90",
-                  )}
-                >
-                  {suggest.isPending ? "Working…" : "✨ Generate"}
-                </Button>
+        <form onSubmit={submit} className="px-4 pt-4 pb-4 sm:px-5">
+          <div className="flex items-center gap-2">
+            {/* Same input slot in both modes — gradient border when AI is on */}
+            {aiEnabled ? (
+              <div className={cn("h-12 min-w-0 flex-1 rounded-xl p-[2px]", GRADIENT)}>
+                <Input
+                  autoFocus
+                  value={aiPrompt}
+                  maxLength={AI_SEARCH_MAX_LENGTH}
+                  disabled={suggest.isPending}
+                  onChange={(e) => setAiPrompt(e.target.value)}
+                  placeholder="top 10 financial stocks"
+                  className="bg-background h-full rounded-[10px] border-0 focus-visible:ring-0"
+                />
               </div>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={enableAi}
-              className={cn(
-                "group flex w-full items-center justify-center rounded-md p-[1.5px] text-sm font-semibold transition-opacity hover:opacity-90",
-                GRADIENT,
-              )}
-            >
-              <span className="bg-background flex w-full items-center justify-center gap-2 rounded-[5px] px-3 py-2">
-                <span aria-hidden>✨</span>
-                <span
-                  className={cn("bg-clip-text text-transparent", GRADIENT)}
-                >
-                  Search with AI
-                </span>
-              </span>
-            </button>
-          )}
+            ) : (
+              <Input
+                autoFocus
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search for a ticker..."
+                className="min-w-0 flex-1 uppercase placeholder:normal-case"
+              />
+            )}
+
+            {aiEnabled ? (
+              <Button
+                type="submit"
+                disabled={!canSubmitAi}
+                className="shrink-0 gap-1.5"
+              >
+                {suggest.isPending ? "Working…" : "✨ Generate"}
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                onClick={enableAi}
+                className="shrink-0 gap-1.5 shadow-[0_0_22px_-2px] shadow-violet-500/60 transition-shadow hover:shadow-violet-500/90"
+              >
+                <span aria-hidden>✨</span> Search with AI
+              </Button>
+            )}
+          </div>
         </form>
 
         {/* Body */}
@@ -209,8 +185,6 @@ export function StockSearchDialog({
             signedIn={signedIn}
             isPending={suggest.isPending}
             error={suggest.isError ? suggest.error.message : null}
-            canAddSymbol={canAddSymbol}
-            hasPrompt={trimmedPrompt.length > 0}
           />
         ) : (
           <SearchResults
@@ -243,15 +217,11 @@ function AiBody({
   signedIn,
   isPending,
   error,
-  canAddSymbol,
-  hasPrompt,
 }: {
   sessionPending: boolean;
   signedIn: boolean;
   isPending: boolean;
   error: string | null;
-  canAddSymbol: boolean;
-  hasPrompt: boolean;
 }) {
   if (isPending) {
     return (
@@ -261,9 +231,7 @@ function AiBody({
     );
   }
 
-  if (sessionPending) {
-    return <BodyState>Checking your session…</BodyState>;
-  }
+  if (sessionPending) return null;
 
   if (!signedIn) {
     return (
@@ -297,7 +265,7 @@ function AiBody({
 
   if (error) {
     return (
-      <div className="px-4 pt-1 pb-6 sm:px-5">
+      <div className="px-4 pt-3 pb-5 sm:px-5">
         <p className="border-semantic-down/30 bg-semantic-down/10 text-semantic-down rounded-lg border px-3 py-2.5 text-sm">
           {error}
         </p>
@@ -305,19 +273,7 @@ function AiBody({
     );
   }
 
-  if (!canAddSymbol) {
-    return (
-      <BodyState>Your watchlist is full — remove a stock to add more.</BodyState>
-    );
-  }
-
-  return (
-    <BodyState>
-      {hasPrompt
-        ? "Press Generate to build your list."
-        : "Try “top 10 financial stocks”, “cheapest big tech by P/E”, or “high-dividend energy stocks”."}
-    </BodyState>
-  );
+  return null;
 }
 
 function AiLoadingLines() {

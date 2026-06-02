@@ -263,6 +263,7 @@ resource "aws_ecs_task_definition" "app" {
         { name = "PORT", value = "3000" },
         { name = "POSTGRES_URL", value = var.postgres_url },
         { name = "AUTH_SECRET", value = var.auth_secret },
+        { name = "AUTH_URL", value = "https://${var.domain}" },
         { name = "AUTH_GOOGLE_ID", value = var.auth_google_id },
         { name = "AUTH_GOOGLE_SECRET", value = var.auth_google_secret },
         { name = "GEMINI_API_KEY", value = var.gemini_api_key },
