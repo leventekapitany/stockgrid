@@ -33,9 +33,10 @@ export function WatchlistPage() {
       <div className="mb-4 grid grid-cols-2 gap-2">
         <Button
           type="button"
+          size="sm"
           disabled={!canAddSymbol}
           onClick={() => setIsSearchOpen(true)}
-          className="justify-self-start"
+          className="justify-self-start rounded-md"
         >
           Add stock
         </Button>

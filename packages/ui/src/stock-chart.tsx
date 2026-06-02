@@ -1,4 +1,5 @@
 import type {
+  BaselineData,
   IChartApi,
   IPriceLine,
   ISeriesApi,
@@ -14,6 +15,7 @@ import {
   createChart,
   CrosshairMode,
   LineStyle,
+  MismatchDirection,
 } from "lightweight-charts";
 
 import { cn } from "@stock/ui";
@@ -68,6 +70,7 @@ export function StockChart({
   const seriesRef = useRef<ISeriesApi<"Baseline"> | null>(null);
   const startLineRef = useRef<IPriceLine | null>(null);
   const barsByTimeRef = useRef(new Map<number, StockChartBar>());
+  const dataRef = useRef(data);
   const isCalendarTime = timeDisplayMode === "calendar";
 
   const dateFormatter = useMemo(
@@ -81,8 +84,13 @@ export function StockChart({
   );
 
   useEffect(() => {
+    dataRef.current = data;
+  }, [data]);
+
+  useEffect(() => {
     const container = containerRef.current;
-    if (!container || data.length === 0) return;
+    const currentData = dataRef.current;
+    if (!container || currentData.length === 0) return;
 
     const rootStyle = getComputedStyle(document.documentElement);
     const upColor = rootStyle.getPropertyValue("--chart-2").trim() || "#05b169";
@@ -147,12 +155,22 @@ export function StockChart({
 
     chartRef.current = chart;
     seriesRef.current = series;
+    barsByTimeRef.current = new Map(currentData.map((bar) => [bar.time, bar]));
+    startLineRef.current = applyChartData(
+      series,
+      chart,
+      currentData,
+      startLineRef.current,
+    );
 
-    const handleCrosshairMove = (param: MouseEventParams<Time>) => {
-      const point = param.point;
-      const datum = param.seriesData.get(series) as LineData<Time> | undefined;
+    const clearHover = () => {
+      chart.clearCrosshairPosition();
+      setHover(null);
+      onHoverChange?.(null);
+    };
 
-      if (!point || !datum || typeof datum.value !== "number") {
+    const showHover = (datum: LineData<Time>) => {
+      if (typeof datum.value !== "number") {
         setHover(null);
         onHoverChange?.(null);
         return;
@@ -198,13 +216,64 @@ export function StockChart({
       onHoverChange?.(nextHover);
     };
 
+    const handleCrosshairMove = (param: MouseEventParams<Time>) => {
+      const datum = param.seriesData.get(series) as LineData<Time> | undefined;
+
+      if (!param.point || !datum) {
+        clearHover();
+        return;
+      }
+
+      showHover(datum);
+    };
+
+    const handlePointerMove = (event: PointerEvent) => {
+      if (!interactive) return;
+      if (event.pointerType === "mouse") return;
+
+      const logical = chart.timeScale().coordinateToLogical(event.offsetX);
+      if (logical === null) {
+        clearHover();
+        return;
+      }
+
+      const datum = series.dataByIndex(
+        Math.round(logical),
+        MismatchDirection.NearestLeft,
+      ) as BaselineData<Time> | null;
+      if (!datum) {
+        clearHover();
+        return;
+      }
+
+      chart.setCrosshairPosition(datum.value, datum.time, series);
+      showHover(datum);
+    };
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!interactive) return;
+      if (event.pointerType === "mouse") return;
+      container.setPointerCapture(event.pointerId);
+      handlePointerMove(event);
+    };
+
     if (interactive) {
       chart.subscribeCrosshairMove(handleCrosshairMove);
+      container.addEventListener("pointerdown", handlePointerDown);
+      container.addEventListener("pointermove", handlePointerMove);
+      container.addEventListener("pointerup", clearHover);
+      container.addEventListener("pointercancel", clearHover);
+      container.addEventListener("pointerleave", clearHover);
     }
 
     return () => {
       if (interactive) {
         chart.unsubscribeCrosshairMove(handleCrosshairMove);
+        container.removeEventListener("pointerdown", handlePointerDown);
+        container.removeEventListener("pointermove", handlePointerMove);
+        container.removeEventListener("pointerup", clearHover);
+        container.removeEventListener("pointercancel", clearHover);
+        container.removeEventListener("pointerleave", clearHover);
       }
       chart.remove();
       chartRef.current = null;
@@ -228,25 +297,12 @@ export function StockChart({
     if (!series || !chart || startPrice === undefined) return;
 
     barsByTimeRef.current = new Map(data.map((bar) => [bar.time, bar]));
-    series.applyOptions({
-      baseValue: { type: "price", price: startPrice },
-    });
-    series.setData(
-      data.map((bar) => ({ time: bar.time as Time, value: bar.close })),
+    startLineRef.current = applyChartData(
+      series,
+      chart,
+      data,
+      startLineRef.current,
     );
-
-    if (startLineRef.current) {
-      series.removePriceLine(startLineRef.current);
-    }
-    startLineRef.current = series.createPriceLine({
-      price: startPrice,
-      color: "rgba(124, 130, 138, 0.55)",
-      lineWidth: 1,
-      lineStyle: LineStyle.Dashed,
-      axisLabelVisible: false,
-      title: "",
-    });
-    chart.timeScale().fitContent();
   }, [data]);
 
   if (data.length === 0) {
@@ -264,7 +320,7 @@ export function StockChart({
 
   return (
     <div className={cn("relative h-24 w-full", className)}>
-      <div ref={containerRef} className="h-full w-full" />
+      <div ref={containerRef} className="h-full w-full touch-none" />
       {interactive && hover && (
         <>
           <div
@@ -288,4 +344,37 @@ export function StockChart({
       )}
     </div>
   );
+}
+
+function applyChartData(
+  series: ISeriesApi<"Baseline">,
+  chart: IChartApi,
+  data: StockChartBar[],
+  previousStartLine: IPriceLine | null,
+) {
+  const startPrice = data[0]?.close;
+  if (startPrice === undefined) return null;
+
+  series.applyOptions({
+    baseValue: { type: "price", price: startPrice },
+  });
+  series.setData(
+    data.map((bar) => ({ time: bar.time as Time, value: bar.close })),
+  );
+
+  if (previousStartLine) {
+    series.removePriceLine(previousStartLine);
+  }
+
+  const startLine = series.createPriceLine({
+    price: startPrice,
+    color: "rgba(124, 130, 138, 0.55)",
+    lineWidth: 1,
+    lineStyle: LineStyle.Dashed,
+    axisLabelVisible: false,
+    title: "",
+  });
+  chart.timeScale().fitContent();
+
+  return startLine;
 }

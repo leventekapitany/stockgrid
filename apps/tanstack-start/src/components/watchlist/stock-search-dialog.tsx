@@ -137,7 +137,7 @@ function SearchResults({
               type="button"
               onClick={() => onSelect(result)}
               disabled={disabled}
-              className="hover:bg-accent focus-visible:bg-accent flex w-full items-center gap-3 rounded-lg px-2 py-3 text-left transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-55 sm:px-3"
+              className="hover:bg-accent focus-visible:bg-accent flex w-full cursor-pointer items-center gap-3 rounded-lg px-2 py-3 text-left transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-55 sm:px-3"
             >
               <div className="min-w-0 flex-1">
                 <div className="flex min-w-0 items-baseline gap-2">

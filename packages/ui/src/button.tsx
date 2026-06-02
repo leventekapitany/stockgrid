@@ -5,7 +5,7 @@ import { Slot as SlotPrimitive } from "radix-ui";
 import { cn } from "@stock/ui";
 
 export const buttonVariants = cva(
-  "focus-visible:ring-ring/30 aria-invalid:border-destructive inline-flex shrink-0 items-center justify-center gap-2 rounded-full text-base leading-none font-semibold whitespace-nowrap transition-colors outline-none focus-visible:ring-[3px] disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "focus-visible:ring-ring/30 aria-invalid:border-destructive inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 rounded-full text-base leading-none font-semibold whitespace-nowrap transition-colors outline-none focus-visible:ring-[3px] disabled:pointer-events-none disabled:cursor-not-allowed [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {

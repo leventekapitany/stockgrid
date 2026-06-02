@@ -6,20 +6,20 @@ import * as z from "zod/v4";
 
 import { Button } from "./button";
 
-const ThemeModeSchema = z.enum(["light", "dark", "auto"]);
+const ThemeModeSchema = z.enum(["light", "dark"]);
 
 const themeKey = "theme-mode";
 
 export type ThemeMode = z.output<typeof ThemeModeSchema>;
-export type ResolvedTheme = Exclude<ThemeMode, "auto">;
+export type ResolvedTheme = ThemeMode;
 
-const getStoredThemeMode = (): ThemeMode => {
-  if (typeof window === "undefined") return "auto";
+const getStoredThemeMode = (): ThemeMode | null => {
+  if (typeof window === "undefined") return null;
   try {
     const storedTheme = localStorage.getItem(themeKey);
     return ThemeModeSchema.parse(storedTheme);
   } catch {
-    return "auto";
+    return null;
   }
 };
 
@@ -32,55 +32,49 @@ const setStoredThemeMode = (theme: ThemeMode) => {
   }
 };
 
-const getSystemTheme = () => {
+const getSystemTheme = (): ResolvedTheme => {
   if (typeof window === "undefined") return "light";
   return window.matchMedia("(prefers-color-scheme: dark)").matches
     ? "dark"
     : "light";
 };
 
-const updateThemeClass = (themeMode: ThemeMode) => {
-  const root = document.documentElement;
-  root.classList.remove("light", "dark", "auto");
-  const newTheme = themeMode === "auto" ? getSystemTheme() : themeMode;
-  root.classList.add(newTheme);
-
-  if (themeMode === "auto") {
-    root.classList.add("auto");
-  }
+const subscribeSystemTheme = (onStoreChange: () => void) => {
+  if (typeof window === "undefined") return () => undefined;
+  const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+  mediaQuery.addEventListener("change", onStoreChange);
+  return () => mediaQuery.removeEventListener("change", onStoreChange);
 };
 
-const setupPreferredListener = () => {
-  const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-  const handler = () => updateThemeClass("auto");
-  mediaQuery.addEventListener("change", handler);
-  return () => mediaQuery.removeEventListener("change", handler);
+const getServerTheme = (): ResolvedTheme => "light";
+
+const updateThemeClass = (themeMode: ResolvedTheme) => {
+  const root = document.documentElement;
+  root.classList.remove("light", "dark");
+  root.classList.add(themeMode);
 };
 
 export const themeDetectorScript = (function () {
   function themeFn() {
     const isValidTheme = (theme: string): theme is ThemeMode => {
-      const validThemes = ["light", "dark", "auto"] as const;
+      const validThemes = ["light", "dark"] as const;
       return validThemes.includes(theme as ThemeMode);
     };
-    const storedTheme = localStorage.getItem("theme-mode") ?? "auto";
-    const validTheme = isValidTheme(storedTheme) ? storedTheme : "auto";
-
-    if (validTheme === "auto") {
-      const autoTheme = window.matchMedia("(prefers-color-scheme: dark)")
-        .matches
+    const storedTheme = localStorage.getItem("theme-mode");
+    const storedThemeValue = storedTheme ?? "";
+    const theme: ThemeMode = isValidTheme(storedThemeValue)
+      ? storedThemeValue
+      : window.matchMedia("(prefers-color-scheme: dark)").matches
         ? "dark"
         : "light";
-      document.documentElement.classList.add(autoTheme, "auto");
-    } else {
-      document.documentElement.classList.add(validTheme);
-    }
+
+    document.documentElement.classList.add(theme);
   }
   return `(${themeFn.toString()})();`;
 })();
 
 interface ThemeContextProps {
-  themeMode: ThemeMode;
+  themeMode: ThemeMode | null;
   resolvedTheme: ResolvedTheme;
   setTheme: (theme: ThemeMode) => void;
   toggleMode: () => void;
@@ -91,17 +85,16 @@ const ThemeContext = React.createContext<ThemeContextProps | undefined>(
 
 export function ThemeProvider({ children }: React.PropsWithChildren) {
   const [themeMode, setThemeMode] = React.useState(getStoredThemeMode);
+  const systemTheme = React.useSyncExternalStore(
+    subscribeSystemTheme,
+    getSystemTheme,
+    getServerTheme,
+  );
+  const resolvedTheme = themeMode ?? systemTheme;
 
   React.useEffect(() => {
-    updateThemeClass(themeMode);
-  }, [themeMode]);
-
-  React.useEffect(() => {
-    if (themeMode !== "auto") return;
-    return setupPreferredListener();
-  }, [themeMode]);
-
-  const resolvedTheme = themeMode === "auto" ? getSystemTheme() : themeMode;
+    updateThemeClass(resolvedTheme);
+  }, [resolvedTheme]);
 
   const setTheme = (newTheme: ThemeMode) => {
     setThemeMode(newTheme);

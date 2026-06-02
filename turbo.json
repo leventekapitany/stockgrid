@@ -14,6 +14,24 @@
       "cache": false,
       "persistent": false
     },
+    "@stock/expo#dev": {
+      "dependsOn": ["^dev"],
+      "cache": false,
+      "persistent": true,
+      "interruptible": true
+    },
+    "@stock/tanstack-start#dev": {
+      "dependsOn": ["^dev"],
+      "cache": false,
+      "persistent": true,
+      "interruptible": true
+    },
+    "@stock/ticker#dev": {
+      "dependsOn": ["^dev"],
+      "cache": false,
+      "persistent": true,
+      "interruptible": true
+    },
     "format": {
       "outputs": [".cache/.prettiercache"],
       "outputLogs": "new-only"

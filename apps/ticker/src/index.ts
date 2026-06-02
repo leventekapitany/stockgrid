@@ -1,5 +1,4 @@
 import { createServer } from "node:http";
-
 import { applyWSSHandler } from "@trpc/server/adapters/ws";
 import { WebSocketServer } from "ws";
 
@@ -55,7 +54,12 @@ server.listen(PORT, () => {
   console.log(`[ticker] http/ws listening on :${PORT}`);
 });
 
+let isShuttingDown = false;
+
 const shutdown = () => {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
+
   console.log("[ticker] shutting down");
   handler.broadcastReconnectNotification();
   wss.close();

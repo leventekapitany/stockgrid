@@ -31,7 +31,7 @@ export function GlobalRangeSelector({
             type="button"
             onClick={() => onRangeChange(nextRange)}
             className={cn(
-              "text-muted-foreground hover:bg-background hover:text-foreground rounded px-2 py-1 text-[11px] font-medium transition-colors",
+              "text-muted-foreground hover:bg-background hover:text-foreground cursor-pointer rounded px-2 py-1 text-[11px] font-medium transition-colors",
               range === nextRange && "bg-background text-foreground shadow-xs",
             )}
           >

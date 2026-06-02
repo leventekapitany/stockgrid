@@ -1,4 +1,8 @@
-# stock
+<p align="center">
+  <img src="apps/tanstack-start/public/brand.svg" alt="StockGrid" width="320" />
+</p>
+
+# StockGrid
 
 Real-time stock ticker with live WebSocket prices, interactive charts, and a global poller that only fetches what someone is actually watching.
 
@@ -78,13 +82,13 @@ Requires Node >= 22 and pnpm >= 10.19.
 
 See `.env.example`. The important ones:
 
-| Variable | What |
-|---|---|
-| `POSTGRES_URL` | Supabase connection string |
-| `AUTH_SECRET` | Session signing secret (`openssl rand -base64 32`) |
-| `AUTH_DISCORD_ID` / `SECRET` | Discord OAuth credentials |
-| `VITE_TICKER_WS_URL` | Ticker WS endpoint (default `ws://localhost:4001`) |
-| `TICKER_PORT` | Ticker service port (default `4001`) |
+| Variable                     | What                                               |
+| ---------------------------- | -------------------------------------------------- |
+| `POSTGRES_URL`               | Supabase connection string                         |
+| `AUTH_SECRET`                | Session signing secret (`openssl rand -base64 32`) |
+| `AUTH_DISCORD_ID` / `SECRET` | Discord OAuth credentials                          |
+| `VITE_TICKER_WS_URL`         | Ticker WS endpoint (default `ws://localhost:4001`) |
+| `TICKER_PORT`                | Ticker service port (default `4001`)               |
 
 ## Deploy
 

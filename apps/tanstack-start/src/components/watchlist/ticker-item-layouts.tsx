@@ -64,7 +64,7 @@ export function TickerItemMobile({
       <button
         type="button"
         onClick={onRemove}
-        className="text-muted-foreground hover:text-foreground shrink-0 px-1 text-xs opacity-0 transition-opacity group-hover:opacity-100"
+        className="text-muted-foreground hover:text-foreground shrink-0 cursor-pointer px-1 text-xs opacity-0 transition-opacity group-hover:opacity-100"
         aria-label={`Remove ${symbol}`}
       >
         ✕
@@ -105,7 +105,7 @@ export function TickerItemDesktop({
       <button
         type="button"
         onClick={onRemove}
-        className="text-muted-foreground hover:text-foreground absolute top-3 right-3 text-xs"
+        className="text-muted-foreground hover:text-foreground absolute top-3 right-3 cursor-pointer text-xs"
         aria-label={`Stop watching ${symbol}`}
       >
         ✕
