@@ -20,6 +20,16 @@ variable "auth_secret" {
   sensitive = true
 }
 
+variable "auth_google_id" {
+  type      = string
+  sensitive = true
+}
+
+variable "auth_google_secret" {
+  type      = string
+  sensitive = true
+}
+
 variable "domain" {
   type    = string
   default = "stockgrid.app"
