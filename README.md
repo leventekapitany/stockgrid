@@ -4,7 +4,7 @@
   </a>
 </p>
 
-Real-time stock watchlist with live WebSocket prices, interactive charts, Google auth, and a global poller that only fetches what someone is actually watching.
+[stockgrid.app](https://stockgrid.app) is a real-time stock watchlist with live WebSocket prices, interactive charts, Google auth, and a global poller that only fetches what someone is actually watching.
 
 Built with TanStack Start, tRPC v11, Better Auth, Drizzle, lightweight-charts, and yahoo-finance2.
 
