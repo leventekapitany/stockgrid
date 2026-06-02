@@ -2,8 +2,6 @@
   <img src="apps/tanstack-start/public/brand.svg" alt="StockGrid" width="320" />
 </p>
 
-# StockGrid
-
 Real-time stock ticker with live WebSocket prices, interactive charts, and a global poller that only fetches what someone is actually watching.
 
 Built with TanStack Start, tRPC v11, lightweight-charts, and yahoo-finance2.
