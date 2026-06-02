@@ -160,4 +160,8 @@ pnpm db:push
 
 ## License
 
-MIT
+Copyright (c) 2026 Levente Kapitany. All rights reserved.
+
+This source code is proprietary. No permission is granted to copy, modify,
+distribute, sublicense, or use this software except with prior written
+permission from the copyright holder.
