@@ -57,6 +57,24 @@ export const SearchResult = z.object({
 });
 export type SearchResult = z.infer<typeof SearchResult>;
 
+export const AI_SEARCH_MAX_LENGTH = 100;
+
+export const AiSearchInput = z.object({
+  prompt: z.string().trim().min(1).max(AI_SEARCH_MAX_LENGTH),
+});
+export type AiSearchInput = z.infer<typeof AiSearchInput>;
+
+export const AiSearchResultItem = z.object({
+  symbol: z.string(),
+  name: z.string().nullable(),
+});
+export type AiSearchResultItem = z.infer<typeof AiSearchResultItem>;
+
+export const AiSearchResult = z.object({
+  symbols: z.array(AiSearchResultItem),
+});
+export type AiSearchResult = z.infer<typeof AiSearchResult>;
+
 export const HistoryRange = z.enum([
   "1D",
   "5D",

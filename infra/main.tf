@@ -265,6 +265,7 @@ resource "aws_ecs_task_definition" "app" {
         { name = "AUTH_SECRET", value = var.auth_secret },
         { name = "AUTH_GOOGLE_ID", value = var.auth_google_id },
         { name = "AUTH_GOOGLE_SECRET", value = var.auth_google_secret },
+        { name = "GEMINI_API_KEY", value = var.gemini_api_key },
         { name = "VITE_TICKER_WS_URL", value = "wss://${var.domain}/ws" },
       ]
 
@@ -311,6 +312,10 @@ resource "aws_ecs_service" "app" {
   task_definition = aws_ecs_task_definition.app.arn
   desired_count   = 1
   launch_type     = "FARGATE"
+
+  # Give new tasks time to boot before ALB health checks count against them.
+  # Ticker needs ~90s (3 checks × 30s) to be marked healthy.
+  health_check_grace_period_seconds = 120
 
   network_configuration {
     subnets          = module.vpc.public_subnets

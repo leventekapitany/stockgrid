@@ -1,3 +1,6 @@
 aws_region          = "eu-west-1"
 postgres_url        = "postgresql://db.example.com:5432/postgres"
 auth_secret         = ""
+auth_google_id      = ""
+auth_google_secret  = ""
+gemini_api_key      = ""

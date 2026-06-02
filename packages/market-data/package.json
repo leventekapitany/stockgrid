@@ -14,6 +14,10 @@
     "./yahoo": {
       "types": "./dist/yahoo.d.ts",
       "default": "./src/yahoo.ts"
+    },
+    "./screening": {
+      "types": "./dist/screening.d.ts",
+      "default": "./src/screening.ts"
     }
   },
   "license": "UNLICENSED",

@@ -30,6 +30,11 @@ variable "auth_google_secret" {
   sensitive = true
 }
 
+variable "gemini_api_key" {
+  type      = string
+  sensitive = true
+}
+
 variable "domain" {
   type    = string
   default = "stockgrid.app"

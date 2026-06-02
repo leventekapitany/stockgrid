@@ -25,6 +25,20 @@ export function WatchlistPage() {
     setSymbols((prev) => [...prev, next]);
   };
 
+  const addSymbols = (incoming: string[]) => {
+    setSymbols((prev) => {
+      const seen = new Set(prev);
+      const merged = [...prev];
+      for (const raw of incoming) {
+        const next = raw.trim().toUpperCase();
+        if (!next || seen.has(next) || merged.length >= MAX_CHARTS) continue;
+        seen.add(next);
+        merged.push(next);
+      }
+      return merged;
+    });
+  };
+
   const removeSymbol = (symbol: string) =>
     setSymbols((prev) => prev.filter((s) => s !== symbol));
 
@@ -79,6 +93,7 @@ export function WatchlistPage() {
         symbols={symbols}
         canAddSymbol={canAddSymbol}
         onAddSymbol={addSymbol}
+        onAddSymbols={addSymbols}
       />
     </main>
   );
