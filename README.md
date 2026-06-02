@@ -1,5 +1,7 @@
 <p align="center">
-  <img src="apps/tanstack-start/public/brand.svg" alt="StockGrid" width="320" />
+  <a href="https://stockgrid.app">
+    <img src="apps/tanstack-start/public/brand.svg" alt="StockGrid" width="320" />
+  </a>
 </p>
 
 Real-time stock watchlist with live WebSocket prices, interactive charts, Google auth, and a global poller that only fetches what someone is actually watching.
