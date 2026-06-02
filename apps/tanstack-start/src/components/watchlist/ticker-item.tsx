@@ -82,6 +82,8 @@ export function TickerItem({
     quote,
     priceFmt,
     displayedPrice,
+    livePrice: quote?.price,
+    animatePrice: !chartHover,
     displayedChange,
     displayedChangePercent,
     displayedPositive,

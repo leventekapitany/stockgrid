@@ -6,6 +6,7 @@ import type { HistoryQueryState } from "./ticker-chart";
 import { ExtendedHoursChange } from "./extended-hours-change";
 import { formatSignedNumber, formatSignedPercent } from "./formatters";
 import { RegularPercentBadge } from "./regular-percent-badge";
+import { RollingPrice } from "./rolling-price";
 import { TickerChart } from "./ticker-chart";
 
 export function TickerItemMobile({
@@ -13,6 +14,8 @@ export function TickerItemMobile({
   quote,
   priceFmt,
   displayedPrice,
+  livePrice,
+  animatePrice,
   displayedChangePercent,
   chartHover,
   onChartHoverChange,
@@ -24,6 +27,8 @@ export function TickerItemMobile({
   quote?: Quote;
   priceFmt: Intl.NumberFormat;
   displayedPrice?: number;
+  livePrice?: number;
+  animatePrice: boolean;
   displayedChangePercent?: number | null;
   chartHover: StockChartHover | null;
   onChartHoverChange: (hover: StockChartHover | null) => void;
@@ -52,9 +57,13 @@ export function TickerItemMobile({
       </div>
 
       <div className="flex min-h-14 shrink-0 flex-col items-end justify-center text-right">
-        <div className="font-mono text-sm font-bold tabular-nums">
-          {displayedPrice != null ? priceFmt.format(displayedPrice) : "—"}
-        </div>
+        <RollingPrice
+          value={displayedPrice}
+          liveValue={livePrice}
+          format={priceFmt}
+          animate={animatePrice}
+          className="font-mono text-sm font-bold"
+        />
         <RegularPercentBadge value={displayedChangePercent} />
         <div className="mt-0.5 h-4">
           {!chartHover && <ExtendedHoursChange quote={quote} />}
@@ -78,6 +87,8 @@ export function TickerItemDesktop({
   quote,
   priceFmt,
   displayedPrice,
+  livePrice,
+  animatePrice,
   displayedChange,
   displayedChangePercent,
   displayedPositive,
@@ -91,6 +102,8 @@ export function TickerItemDesktop({
   quote?: Quote;
   priceFmt: Intl.NumberFormat;
   displayedPrice?: number;
+  livePrice?: number;
+  animatePrice: boolean;
   displayedChange?: number | null;
   displayedChangePercent?: number | null;
   displayedPositive: boolean;
@@ -123,13 +136,13 @@ export function TickerItemDesktop({
       </div>
 
       <div className="flex min-h-12 items-start justify-between gap-2">
-        <div className="font-mono text-3xl tabular-nums">
-          {displayedPrice != null ? (
-            priceFmt.format(displayedPrice)
-          ) : (
-            <span>—</span>
-          )}
-        </div>
+        <RollingPrice
+          value={displayedPrice}
+          liveValue={livePrice}
+          format={priceFmt}
+          animate={animatePrice}
+          className="font-mono text-3xl"
+        />
         <div className="min-h-12 shrink-0 text-right">
           {displayedChange != null && (
             <div
