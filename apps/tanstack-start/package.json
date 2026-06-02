@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "pnpm with-env vite dev",
     "build": "vite build",
-    "deploy": "VITE_TICKER_WS_URL=wss://stock-ticker.up.railway.app pnpm build && wrangler --cwd .output deploy --old-asset-ttl 604800 --keep-vars",
+    "deploy": "VITE_TICKER_WS_URL=wss://stockgrid.app/ws pnpm build && wrangler --cwd .output deploy --old-asset-ttl 604800 --keep-vars",
     "preview": "pnpm build && wrangler --cwd .output dev",
     "start": "vite start",
     "format": "prettier --check . --ignore-path ../../.gitignore --ignore-path .prettierignore",

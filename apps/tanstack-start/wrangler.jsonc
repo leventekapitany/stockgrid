@@ -9,7 +9,7 @@
     "directory": ".output/public"
   },
   "vars": {
-    "VITE_TICKER_WS_URL": "wss://stock-ticker.up.railway.app"
+    "VITE_TICKER_WS_URL": "wss://stockgrid.app/ws"
   },
   "no_bundle": true,
   "rules": [

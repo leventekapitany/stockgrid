@@ -2,20 +2,21 @@
   <img src="apps/tanstack-start/public/brand.svg" alt="StockGrid" width="320" />
 </p>
 
-Real-time stock ticker with live WebSocket prices, interactive charts, and a global poller that only fetches what someone is actually watching.
+Real-time stock watchlist with live WebSocket prices, interactive charts, Google auth, and a global poller that only fetches what someone is actually watching.
 
-Built with TanStack Start, tRPC v11, lightweight-charts, and yahoo-finance2.
+Built with TanStack Start, tRPC v11, Better Auth, Drizzle, lightweight-charts, and yahoo-finance2.
 
 ## Architecture
 
-Two services, one tRPC router. The web app handles SSR and regular API calls. A separate ticker server runs a persistent poller and pushes live quotes over WebSocket.
+Two runtime services, one tRPC router. The web app handles SSR, Better Auth, and regular API calls. A separate ticker server runs a persistent poller and pushes live quotes over WebSocket.
 
 The client uses tRPC's `splitLink` to route `ticker.*` operations through `wsLink` to the ticker service, and everything else through `httpBatchStreamLink` to the web app.
 
 ```
 Browser
-  ├─ ticker.*  ── wsLink ──────────► ticker :4001  (WebSocket, Bun)
-  └─ *         ── httpBatchStream ─► web    :3000  (TanStack Start)
+  ├─ ticker.*  ── wsLink ──────────► wss://stockgrid.app/ws
+  │                                      └─ AWS ALB ► ECS/Fargate ticker :4001 (Bun)
+  └─ *         ── httpBatchStream ─► web app :3000 (TanStack Start)
 
 ticker service
   StockPoller
@@ -32,19 +33,19 @@ ticker service
 - **Web** — TanStack Start, React 19, Tailwind CSS v4
 - **Mobile** — Expo 54, React Native, NativeWind
 - **API** — tRPC v11 (HTTP + WebSocket subscriptions)
-- **Auth** — Better Auth (Discord OAuth)
-- **Database** — Drizzle ORM, PostgreSQL (Supabase)
+- **Auth** — Better Auth (Google OAuth)
+- **Database** — Supabase Postgres, Drizzle ORM, Postgres.js
 - **Charts** — lightweight-charts (TradingView)
 - **Market data** — yahoo-finance2 v3
 - **Validation** — Zod v4
-- **Deploy** — Cloudflare Workers (web), Railway (ticker)
+- **Deploy** — Cloudflare Workers (web), AWS ECS/Fargate + ALB (ticker)
 
 ## Structure
 
 ```
 apps/
   tanstack-start/   Web app — SSR, Vite, Cloudflare Workers
-  ticker/           WebSocket ticker service — Bun
+  ticker/           WebSocket ticker service — Bun, Docker, AWS ECS/Fargate
   expo/             React Native mobile app
 
 packages/
@@ -56,6 +57,9 @@ packages/
 
 tooling/
   eslint/ prettier/ tailwind/ typescript/
+
+infra/
+  Terraform for AWS VPC, ALB, ACM, ECR, ECS/Fargate, and CloudWatch logs
 ```
 
 ## Getting started
@@ -64,7 +68,6 @@ tooling/
 pnpm install
 cp .env.example .env   # then fill in your values
 pnpm db:push
-pnpm --filter @stock/auth generate
 
 # run everything
 pnpm dev
@@ -91,9 +94,67 @@ See `.env.example`. The important ones:
 
 ## Deploy
 
-- **Web** — `pnpm --filter @stock/tanstack-start deploy` pushes to Cloudflare Workers
-- **Ticker** — any long-lived host (Railway, Fly, a VPS). Needs a persistent process for the poller and WebSocket server.
-- **Database** — Supabase or any PostgreSQL
+### Web
+
+The web app deploys to Cloudflare Workers:
+
+```bash
+pnpm --filter @stock/tanstack-start deploy
+```
+
+The deploy script builds with `VITE_TICKER_WS_URL=wss://stockgrid.app/ws`, then deploys Nitro's generated `.output` with Wrangler.
+
+Set these Cloudflare Worker vars/secrets before production deploy:
+
+```txt
+AUTH_URL=https://stockgrid.app
+AUTH_GOOGLE_ID=...
+AUTH_GOOGLE_SECRET=...
+AUTH_SECRET=...
+POSTGRES_URL=...
+```
+
+### Ticker
+
+The ticker service is a long-lived Bun WebSocket process. Current infrastructure runs it on AWS ECS/Fargate behind an Application Load Balancer. The ALB routes `/ws` and `/ws/*` to the ticker container on port `4001`, so the public WebSocket URL is:
+
+```txt
+wss://stockgrid.app/ws
+```
+
+Deploy the AWS containers with:
+
+```bash
+./infra/deploy.sh ticker   # ticker only
+./infra/deploy.sh all      # web + ticker images in the ECS task
+```
+
+### AWS Infra
+
+`infra/` contains Terraform for:
+
+- VPC with public subnets
+- ECR repositories for web and ticker images
+- Application Load Balancer with HTTPS
+- ACM certificate validated by DNS in Cloudflare
+- ECS/Fargate service with web and ticker containers
+- CloudWatch log group
+
+Useful commands:
+
+```bash
+terraform -chdir=infra init
+terraform -chdir=infra apply
+terraform -chdir=infra output
+```
+
+### Database
+
+The database is Supabase Postgres. Apply the Drizzle schema, including Better Auth tables, with:
+
+```bash
+pnpm db:push
+```
 
 ## License
 
