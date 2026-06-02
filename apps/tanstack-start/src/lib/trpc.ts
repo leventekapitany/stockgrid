@@ -14,7 +14,6 @@ import SuperJSON from "superjson";
 
 import * as Api from "@stock/api";
 
-import { auth } from "~/auth/server";
 import { env } from "~/env";
 import { getBaseUrl } from "~/lib/url";
 
@@ -25,7 +24,8 @@ export const makeTRPCClient = createIsomorphicFn()
         unstable_localLink({
           router: Api.appRouter,
           transformer: SuperJSON,
-          createContext: () => {
+          createContext: async () => {
+            const { auth } = await import("~/auth/server");
             const headers = new Headers(getRequestHeaders());
             headers.set("x-trpc-source", "tanstack-start-server");
             return Api.createTRPCContext({ auth, headers });

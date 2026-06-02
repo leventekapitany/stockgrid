@@ -1,3 +1,3 @@
 aws_region          = "eu-west-1"
-postgres_url        = "postgresql://user:pass@db.xxx.supabase.co:6543/postgres"
-auth_secret         = "CHANGE_ME"
+postgres_url        = "postgresql://db.example.com:5432/postgres"
+auth_secret         = ""

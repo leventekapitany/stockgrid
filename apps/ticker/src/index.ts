@@ -22,10 +22,7 @@ const server = createServer((req, res) => {
 
 const auth = initAuth({
   baseUrl: `http://localhost:${PORT}`,
-  productionUrl: `http://localhost:${PORT}`,
   secret: process.env.AUTH_SECRET,
-  discordClientId: process.env.AUTH_DISCORD_ID ?? "",
-  discordClientSecret: process.env.AUTH_DISCORD_SECRET ?? "",
 });
 
 const wss = new WebSocketServer({ server });

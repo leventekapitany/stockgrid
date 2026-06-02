@@ -10,13 +10,24 @@ export function initAuth<
   TExtraPlugins extends BetterAuthPlugin[] = [],
 >(options: {
   baseUrl: string;
-  productionUrl: string;
   secret: string | undefined;
 
-  discordClientId: string;
-  discordClientSecret: string;
+  productionUrl?: string;
+  googleClientId?: string;
+  googleClientSecret?: string;
   extraPlugins?: TExtraPlugins;
 }) {
+  const socialProviders =
+    options.googleClientId && options.googleClientSecret
+      ? {
+          google: {
+            clientId: options.googleClientId,
+            clientSecret: options.googleClientSecret,
+            redirectURI: `${options.baseUrl}/api/auth/callback/google`,
+          },
+        }
+      : undefined;
+
   const config = {
     database: drizzleAdapter(db, {
       provider: "pg",
@@ -25,18 +36,12 @@ export function initAuth<
     secret: options.secret,
     plugins: [
       oAuthProxy({
-        productionURL: options.productionUrl,
+        productionURL: options.productionUrl ?? options.baseUrl,
       }),
       expo(),
       ...(options.extraPlugins ?? []),
     ],
-    socialProviders: {
-      discord: {
-        clientId: options.discordClientId,
-        clientSecret: options.discordClientSecret,
-        redirectURI: `${options.productionUrl}/api/auth/callback/discord`,
-      },
-    },
+    socialProviders,
     trustedOrigins: ["expo://"],
     onAPIError: {
       onError(error, ctx) {

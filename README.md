@@ -84,7 +84,8 @@ See `.env.example`. The important ones:
 | ---------------------------- | -------------------------------------------------- |
 | `POSTGRES_URL`               | Supabase connection string                         |
 | `AUTH_SECRET`                | Session signing secret (`openssl rand -base64 32`) |
-| `AUTH_DISCORD_ID` / `SECRET` | Discord OAuth credentials                          |
+| `AUTH_URL`                   | Canonical web auth URL                             |
+| `AUTH_GOOGLE_ID` / `SECRET`  | Google OAuth credentials                           |
 | `VITE_TICKER_WS_URL`         | Ticker WS endpoint (default `ws://localhost:4001`) |
 | `TICKER_PORT`                | Ticker service port (default `4001`)               |
 

@@ -18,6 +18,7 @@ import {
 } from "@stock/ui/theme";
 import { Toaster } from "@stock/ui/toast";
 
+import { AuthButton } from "~/components/auth-button";
 import appCss from "~/styles.css?url";
 
 export const Route = createRootRouteWithContext<{
@@ -112,7 +113,10 @@ function RootDocument({ children }: { children: React.ReactNode }) {
                 fetchPriority="high"
               />
             </button>
-            <ThemeToggle />
+            <div className="flex min-w-0 items-center gap-2">
+              <AuthButton />
+              <ThemeToggle />
+            </div>
           </header>
           {children}
           <Toaster />
