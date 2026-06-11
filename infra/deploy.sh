@@ -4,7 +4,9 @@
 set -euo pipefail
 
 TARGET=${1:-all}
-REGION=$(terraform -chdir=infra output -raw aws_region 2>/dev/null || echo "eu-west-1")
+cd "$(git rev-parse --show-toplevel)"
+
+REGION=${AWS_REGION:-$(terraform -chdir=infra output -raw aws_region 2>/dev/null || echo "eu-west-1")}
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 ECR_BASE="$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com"
 
@@ -21,8 +23,6 @@ build_and_push() {
   docker build --platform linux/amd64 -t "$repo:latest" -f "$dockerfile" .
   docker push "$repo:latest"
 }
-
-cd "$(git rev-parse --show-toplevel)"
 
 case "$TARGET" in
   web)    build_and_push web apps/tanstack-start/Dockerfile ;;

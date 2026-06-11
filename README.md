@@ -95,15 +95,15 @@ Requires Node >= 22 and pnpm >= 10.19.
 
 See `.env.example`. The important ones:
 
-| Variable                     | What                                               |
-| ---------------------------- | -------------------------------------------------- |
-| `POSTGRES_URL`               | Supabase connection string                         |
-| `AUTH_SECRET`                | Session signing secret (`openssl rand -base64 32`) |
-| `AUTH_URL`                   | Canonical web auth URL                             |
-| `AUTH_GOOGLE_ID` / `SECRET`  | Google OAuth credentials                           |
-| `GEMINI_API_KEY`             | Google Gemini API key for AI search (server-side)  |
-| `VITE_TICKER_WS_URL`         | Ticker WS endpoint (default `ws://localhost:4001`) |
-| `TICKER_PORT`                | Ticker service port (default `4001`)               |
+| Variable                    | What                                               |
+| --------------------------- | -------------------------------------------------- |
+| `POSTGRES_URL`              | Supabase connection string                         |
+| `AUTH_SECRET`               | Session signing secret (`openssl rand -base64 32`) |
+| `AUTH_URL`                  | Canonical web auth URL                             |
+| `AUTH_GOOGLE_ID` / `SECRET` | Google OAuth credentials                           |
+| `GEMINI_API_KEY`            | Google Gemini API key for AI search (server-side)  |
+| `VITE_TICKER_WS_URL`        | Ticker WS endpoint (default `ws://localhost:4001`) |
+| `TICKER_PORT`               | Ticker service port (default `4001`)               |
 
 ## Deploy
 
@@ -142,6 +142,10 @@ Deploy the AWS containers with:
 ./infra/deploy.sh ticker   # ticker only
 ./infra/deploy.sh all      # web + ticker images in the ECS task
 ```
+
+GitHub Actions deploys the same script from `.github/workflows/deploy.yml`.
+Pushes to `main` deploy both images, and `workflow_dispatch` lets you choose
+`web`, `ticker`, or `all`.
 
 ### AWS Infra
 

@@ -1,0 +1,70 @@
+name: Deploy
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/deploy.yml"
+      - "apps/tanstack-start/**"
+      - "apps/ticker/**"
+      - "packages/**"
+      - "tooling/**"
+      - "infra/deploy.sh"
+      - "Dockerfile.ticker"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "turbo.json"
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Which image(s) to build and deploy"
+        required: true
+        default: "all"
+        type: choice
+        options:
+          - all
+          - web
+          - ticker
+      wait_for_stability:
+        description: "Wait until the ECS service is stable"
+        required: true
+        default: true
+        type: boolean
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION || 'eu-west-1' }}
+  DEPLOY_TARGET: ${{ github.event_name == 'workflow_dispatch' && inputs.target || 'all' }}
+
+jobs:
+  deploy:
+    name: Deploy to ECS
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Verify AWS identity
+        run: aws sts get-caller-identity
+
+      - name: Build, push, and redeploy
+        run: ./infra/deploy.sh "$DEPLOY_TARGET"
+
+      - name: Wait for ECS service stability
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.wait_for_stability }}
+        run: aws ecs wait services-stable --cluster stock --services stock --region "$AWS_REGION"
