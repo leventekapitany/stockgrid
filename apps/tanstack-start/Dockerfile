@@ -30,8 +30,11 @@ RUN pnpm --filter @stock/tanstack-start build
 
 # ── Runtime stage ────────────────────────────
 FROM node:22-slim
-WORKDIR /app
+WORKDIR /app/apps/tanstack-start
 
+# Keep pnpm's workspace symlink layout available for Nitro externals.
+COPY --from=build /app/node_modules /app/node_modules
+COPY --from=build /app/apps/tanstack-start/node_modules node_modules
 COPY --from=build /app/apps/tanstack-start/.output .output
 
 ENV NODE_ENV=production

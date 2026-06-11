@@ -9,36 +9,28 @@ import type {
 } from "lightweight-charts";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { format } from "date-fns";
-import {
-  BaselineSeries,
-  ColorType,
-  createChart,
-  CrosshairMode,
-  LineStyle,
-  MismatchDirection,
-} from "lightweight-charts";
+import { MismatchDirection } from "lightweight-charts";
 
 import { cn } from "@stock/ui";
 import { useTheme } from "@stock/ui/theme";
 
-export interface StockChartBar {
-  time: number;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-  volume: number | null;
-  session: "regular" | "post";
-}
+import type {
+  ChartTimeDisplayMode,
+  StockChartBar,
+  StockChartHover,
+} from "./stock-chart-types";
+import { createStockChartParts } from "./stock-chart-core";
+import {
+  animateChartData,
+  applyChartData,
+  shouldAnimateChartData,
+} from "./stock-chart-data";
 
-type ChartTimeDisplayMode = "intraday" | "calendar";
-
-export interface StockChartHover {
-  price: number;
-  change: number;
-  changePercent: number | null;
-  time: string;
-}
+export type {
+  ChartTimeDisplayMode,
+  StockChartBar,
+  StockChartHover,
+} from "./stock-chart-types";
 
 interface HoverState {
   x: number;
@@ -71,7 +63,13 @@ export function StockChart({
   const startLineRef = useRef<IPriceLine | null>(null);
   const barsByTimeRef = useRef(new Map<number, StockChartBar>());
   const dataRef = useRef(data);
+  const renderedDataRef = useRef<StockChartBar[]>([]);
+  const animationFrameRef = useRef<number | null>(null);
+  const hoverResetFrameRef = useRef<number | null>(null);
+  const onHoverChangeRef = useRef(onHoverChange);
+  const isCalendarTimeRef = useRef(timeDisplayMode === "calendar");
   const isCalendarTime = timeDisplayMode === "calendar";
+  const hasData = data.length > 0;
 
   const dateFormatter = useMemo(
     () =>
@@ -88,70 +86,19 @@ export function StockChart({
   }, [data]);
 
   useEffect(() => {
+    onHoverChangeRef.current = onHoverChange;
+  }, [onHoverChange]);
+
+  useEffect(() => {
+    isCalendarTimeRef.current = isCalendarTime;
+  }, [isCalendarTime]);
+
+  useEffect(() => {
     const container = containerRef.current;
     const currentData = dataRef.current;
     if (!container || currentData.length === 0) return;
 
-    const rootStyle = getComputedStyle(document.documentElement);
-    const upColor = rootStyle.getPropertyValue("--chart-2").trim() || "#05b169";
-    const downColor =
-      rootStyle.getPropertyValue("--chart-3").trim() || "#cf202f";
-
-    const chart = createChart(container, {
-      width: container.clientWidth,
-      height: container.clientHeight,
-      autoSize: true,
-      layout: {
-        background: { type: ColorType.Solid, color: "transparent" },
-        textColor: "transparent",
-        attributionLogo: false,
-      },
-      grid: {
-        horzLines: { visible: false },
-        vertLines: { visible: false },
-      },
-      crosshair: interactive
-        ? {
-            mode: CrosshairMode.Magnet,
-            horzLine: {
-              color: "rgba(124, 130, 138, 0.45)",
-              labelVisible: false,
-              visible: true,
-            },
-            vertLine: {
-              color: "rgba(124, 130, 138, 0.55)",
-              labelVisible: false,
-              style: LineStyle.Dashed,
-              visible: true,
-            },
-          }
-        : {
-            horzLine: { visible: false },
-            vertLine: { visible: false },
-          },
-      leftPriceScale: { visible: false },
-      rightPriceScale: { visible: false },
-      timeScale: {
-        visible: false,
-        borderVisible: false,
-      },
-      handleScroll: false,
-      handleScale: false,
-    });
-
-    const series = chart.addSeries(BaselineSeries, {
-      baseValue: { type: "price", price: 0 },
-      lineWidth: interactive ? 2 : 1,
-      topLineColor: upColor,
-      bottomLineColor: downColor,
-      topFillColor1: "rgba(5, 177, 105, 0.24)",
-      topFillColor2: "rgba(5, 177, 105, 0.04)",
-      bottomFillColor1: "rgba(207, 32, 47, 0.04)",
-      bottomFillColor2: "rgba(207, 32, 47, 0.24)",
-      lastValueVisible: false,
-      priceLineVisible: false,
-      crosshairMarkerVisible: false,
-    });
+    const { chart, series } = createStockChartParts(container, interactive);
 
     chartRef.current = chart;
     seriesRef.current = series;
@@ -162,17 +109,18 @@ export function StockChart({
       currentData,
       startLineRef.current,
     );
+    renderedDataRef.current = currentData;
 
     const clearHover = () => {
       chart.clearCrosshairPosition();
       setHover(null);
-      onHoverChange?.(null);
+      onHoverChangeRef.current?.(null);
     };
 
     const showHover = (datum: LineData<Time>) => {
       if (typeof datum.value !== "number") {
         setHover(null);
-        onHoverChange?.(null);
+        onHoverChangeRef.current?.(null);
         return;
       }
 
@@ -180,7 +128,7 @@ export function StockChart({
       const x = chart.timeScale().timeToCoordinate(datum.time);
       if (x === null || y === null) {
         setHover(null);
-        onHoverChange?.(null);
+        onHoverChangeRef.current?.(null);
         return;
       }
 
@@ -195,7 +143,7 @@ export function StockChart({
 
       const date = bar ? new Date(bar.time * 1000) : null;
       const timeLabel = date
-        ? isCalendarTime
+        ? isCalendarTimeRef.current
           ? dateFormatter.format(date)
           : format(date, "HH:mm")
         : "";
@@ -213,7 +161,7 @@ export function StockChart({
         ...nextHover,
         positive: change >= 0,
       });
-      onHoverChange?.(nextHover);
+      onHoverChangeRef.current?.(nextHover);
     };
 
     const handleCrosshairMove = (param: MouseEventParams<Time>) => {
@@ -279,16 +227,17 @@ export function StockChart({
       chartRef.current = null;
       seriesRef.current = null;
       startLineRef.current = null;
-      onHoverChange?.(null);
+      if (animationFrameRef.current !== null) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
+      if (hoverResetFrameRef.current !== null) {
+        cancelAnimationFrame(hoverResetFrameRef.current);
+        hoverResetFrameRef.current = null;
+      }
+      onHoverChangeRef.current?.(null);
     };
-  }, [
-    data.length,
-    resolvedTheme,
-    isCalendarTime,
-    dateFormatter,
-    interactive,
-    onHoverChange,
-  ]);
+  }, [hasData, resolvedTheme, dateFormatter, interactive]);
 
   useEffect(() => {
     const series = seriesRef.current;
@@ -297,12 +246,42 @@ export function StockChart({
     if (!series || !chart || startPrice === undefined) return;
 
     barsByTimeRef.current = new Map(data.map((bar) => [bar.time, bar]));
+    if (hoverResetFrameRef.current !== null) {
+      cancelAnimationFrame(hoverResetFrameRef.current);
+    }
+    hoverResetFrameRef.current = requestAnimationFrame(() => {
+      hoverResetFrameRef.current = null;
+      setHover(null);
+      onHoverChangeRef.current?.(null);
+    });
+
+    const previousData = renderedDataRef.current;
+    if (shouldAnimateChartData(previousData, data)) {
+      startLineRef.current = animateChartData({
+        series,
+        chart,
+        fromData: previousData,
+        toData: data,
+        startLine: startLineRef.current,
+        animationFrameRef,
+        onComplete: () => {
+          renderedDataRef.current = data;
+        },
+      });
+      return;
+    }
+
+    if (animationFrameRef.current !== null) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
     startLineRef.current = applyChartData(
       series,
       chart,
       data,
       startLineRef.current,
     );
+    renderedDataRef.current = data;
   }, [data]);
 
   if (data.length === 0) {
@@ -344,37 +323,4 @@ export function StockChart({
       )}
     </div>
   );
-}
-
-function applyChartData(
-  series: ISeriesApi<"Baseline">,
-  chart: IChartApi,
-  data: StockChartBar[],
-  previousStartLine: IPriceLine | null,
-) {
-  const startPrice = data[0]?.close;
-  if (startPrice === undefined) return null;
-
-  series.applyOptions({
-    baseValue: { type: "price", price: startPrice },
-  });
-  series.setData(
-    data.map((bar) => ({ time: bar.time as Time, value: bar.close })),
-  );
-
-  if (previousStartLine) {
-    series.removePriceLine(previousStartLine);
-  }
-
-  const startLine = series.createPriceLine({
-    price: startPrice,
-    color: "rgba(124, 130, 138, 0.55)",
-    lineWidth: 1,
-    lineStyle: LineStyle.Dashed,
-    axisLabelVisible: false,
-    title: "",
-  });
-  chart.timeScale().fitContent();
-
-  return startLine;
 }

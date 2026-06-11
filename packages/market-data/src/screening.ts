@@ -1,18 +1,5 @@
+import type { ScreenSortBy } from "./screening-options";
 import YahooFinance from "yahoo-finance2";
-
-const yahooFinance = new YahooFinance({
-  suppressNotices: ["yahooSurvey", "ripHistorical"],
-});
-
-export const SCREEN_SORT_BY = [
-  "pe",
-  "marketCap",
-  "changePercent",
-  "dividendYield",
-  "none",
-] as const;
-
-export type ScreenSortBy = (typeof SCREEN_SORT_BY)[number];
 
 export interface ScreenedStock {
   symbol: string;
@@ -44,6 +31,10 @@ interface Candidate {
 
 // Upper bound on how many AI-suggested tickers we'll verify against Yahoo in one go.
 const MAX_CANDIDATES = 40;
+
+const yahooFinance = new YahooFinance({
+  suppressNotices: ["yahooSurvey", "ripHistorical"],
+});
 
 /**
  * Verify a list of candidate ticker symbols against Yahoo Finance, then rank
@@ -84,7 +75,7 @@ export async function screenSymbols(
   cleaned.forEach((symbol, order) => {
     const raw = bySymbol.get(symbol);
     // Drop anything Yahoo couldn't price — keeps invalid/hallucinated tickers out.
-    if (!raw || raw.regularMarketPrice === undefined) return;
+    if (raw?.regularMarketPrice === undefined) return;
 
     candidates.push({
       symbol,

@@ -18,6 +18,10 @@
     "./screening": {
       "types": "./dist/screening.d.ts",
       "default": "./src/screening.ts"
+    },
+    "./screening-options": {
+      "types": "./dist/screening-options.d.ts",
+      "default": "./src/screening-options.ts"
     }
   },
   "license": "UNLICENSED",

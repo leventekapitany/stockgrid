@@ -1,9 +1,10 @@
-import { useCallback, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSubscription } from "@trpc/tanstack-react-query";
 
 import type { StockChartHover } from "@stock/ui/stock-chart";
 import type { HistoryRange } from "@stock/validators";
+import { HISTORY_RANGES } from "@stock/market-data/range-policy";
 
 import { useTRPC } from "~/lib/trpc";
 import { TickerItemDesktop, TickerItemMobile } from "./ticker-item-layouts";
@@ -20,6 +21,7 @@ export function TickerItem({
   onRemove: () => void;
 }) {
   const trpc = useTRPC();
+  const queryClient = useQueryClient();
   const sub = useSubscription(
     trpc.ticker.watch.subscriptionOptions({ symbol }),
   );
@@ -28,11 +30,26 @@ export function TickerItem({
     range: HistoryRange;
     hover: StockChartHover | null;
   } | null>(null);
+  const prefetchedRangesRef = useRef(new Set<HistoryRange>());
 
   const quote = sub.data;
   const regularChange = quote?.regularChange ?? quote?.change;
   const regularChangePercent =
     quote?.regularChangePercent ?? quote?.changePercent;
+
+  useEffect(() => {
+    if (!history.isSuccess) return;
+
+    prefetchedRangesRef.current.add(range);
+    for (const nextRange of HISTORY_RANGES) {
+      if (prefetchedRangesRef.current.has(nextRange)) continue;
+      prefetchedRangesRef.current.add(nextRange);
+
+      void queryClient.prefetchQuery(
+        trpc.ticker.history.queryOptions({ symbol, range: nextRange }),
+      );
+    }
+  }, [history.isSuccess, queryClient, range, symbol, trpc]);
 
   const rangeChange = useMemo(() => {
     const bars = history.data;

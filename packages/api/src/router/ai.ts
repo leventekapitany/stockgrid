@@ -4,7 +4,7 @@ import { TRPCError } from "@trpc/server";
 import { generateObject } from "ai";
 import { z } from "zod/v4";
 
-import { screenSymbols, SCREEN_SORT_BY } from "@stock/market-data/screening";
+import { SCREEN_SORT_BY } from "@stock/market-data/screening-options";
 import { AiSearchInput } from "@stock/validators";
 
 import { protectedProcedure } from "../trpc";
@@ -105,6 +105,7 @@ export const aiRouter = {
         MAX_RESULTS,
       );
 
+      const { screenSymbols } = await import("@stock/market-data/screening");
       const symbols = await screenSymbols(intent.symbols, intent.sortBy, count);
       console.log(
         "[ai.suggestStocks] screened symbols:",
