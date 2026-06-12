@@ -10,6 +10,16 @@ export interface StockChartBar {
 
 export type ChartTimeDisplayMode = "intraday" | "calendar";
 
+export type StockChartRange =
+  | "1D"
+  | "5D"
+  | "1M"
+  | "3M"
+  | "6M"
+  | "1Y"
+  | "5Y"
+  | "MAX";
+
 export interface StockChartHover {
   price: number;
   change: number;

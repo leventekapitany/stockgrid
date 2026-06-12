@@ -1,5 +1,5 @@
 import type { StockChartHover } from "@stock/ui/stock-chart";
-import type { HistoryBar } from "@stock/validators";
+import type { HistoryBar, HistoryRange } from "@stock/validators";
 import { StockChart } from "@stock/ui/stock-chart";
 
 export interface HistoryQueryState {
@@ -10,12 +10,14 @@ export interface HistoryQueryState {
 
 export function TickerChart({
   history,
+  range,
   chartTimeDisplayMode,
   className,
   interactive = true,
   onHoverChange,
 }: {
   history: HistoryQueryState;
+  range: HistoryRange;
   chartTimeDisplayMode: "intraday" | "calendar";
   className?: string;
   interactive?: boolean;
@@ -44,6 +46,7 @@ export function TickerChart({
       data={history.data ?? []}
       className={className}
       interactive={interactive}
+      range={range}
       timeDisplayMode={chartTimeDisplayMode}
       onHoverChange={onHoverChange}
     />

@@ -107,6 +107,7 @@ export function TickerItem({
     chartHover,
     onChartHoverChange: updateChartHover,
     history,
+    range,
     chartTimeDisplayMode,
     onRemove,
   };

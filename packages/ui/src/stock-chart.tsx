@@ -7,17 +7,19 @@ import type {
   MouseEventParams,
   Time,
 } from "lightweight-charts";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { format } from "date-fns";
 import { MismatchDirection } from "lightweight-charts";
 
 import { cn } from "@stock/ui";
 import { useTheme } from "@stock/ui/theme";
 
+import type { PositionedStockChartAxisLabel } from "./stock-chart-time-axis";
 import type {
   ChartTimeDisplayMode,
   StockChartBar,
   StockChartHover,
+  StockChartRange,
 } from "./stock-chart-types";
 import { createStockChartParts } from "./stock-chart-core";
 import {
@@ -25,11 +27,13 @@ import {
   applyChartData,
   shouldAnimateChartData,
 } from "./stock-chart-data";
+import { positionStockChartAxisLabels } from "./stock-chart-time-axis";
 
 export type {
   ChartTimeDisplayMode,
   StockChartBar,
   StockChartHover,
+  StockChartRange,
 } from "./stock-chart-types";
 
 interface HoverState {
@@ -47,16 +51,21 @@ export function StockChart({
   className,
   interactive = true,
   timeDisplayMode = "intraday",
+  range = timeDisplayMode === "intraday" ? "1D" : "1M",
   onHoverChange,
 }: {
   data: StockChartBar[];
   className?: string;
   interactive?: boolean;
   timeDisplayMode?: ChartTimeDisplayMode;
+  range?: StockChartRange;
   onHoverChange?: (hover: StockChartHover | null) => void;
 }) {
   const { resolvedTheme } = useTheme();
   const [hover, setHover] = useState<HoverState | null>(null);
+  const [axisLabels, setAxisLabels] = useState<PositionedStockChartAxisLabel[]>(
+    [],
+  );
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<"Baseline"> | null>(null);
@@ -66,7 +75,9 @@ export function StockChart({
   const renderedDataRef = useRef<StockChartBar[]>([]);
   const animationFrameRef = useRef<number | null>(null);
   const hoverResetFrameRef = useRef<number | null>(null);
+  const axisLabelsFrameRef = useRef<number | null>(null);
   const onHoverChangeRef = useRef(onHoverChange);
+  const rangeRef = useRef(range);
   const isCalendarTimeRef = useRef(timeDisplayMode === "calendar");
   const isCalendarTime = timeDisplayMode === "calendar";
   const hasData = data.length > 0;
@@ -81,6 +92,27 @@ export function StockChart({
     [],
   );
 
+  const scheduleAxisLabelsUpdate = useCallback((nextData: StockChartBar[]) => {
+    const chart = chartRef.current;
+    const container = containerRef.current;
+    if (!chart || !container) return;
+
+    if (axisLabelsFrameRef.current !== null) {
+      cancelAnimationFrame(axisLabelsFrameRef.current);
+    }
+
+    axisLabelsFrameRef.current = requestAnimationFrame(() => {
+      axisLabelsFrameRef.current = null;
+      setAxisLabels(
+        positionStockChartAxisLabels({
+          container,
+          data: nextData,
+          range: rangeRef.current,
+        }),
+      );
+    });
+  }, []);
+
   useEffect(() => {
     dataRef.current = data;
   }, [data]);
@@ -94,11 +126,18 @@ export function StockChart({
   }, [isCalendarTime]);
 
   useEffect(() => {
+    rangeRef.current = range;
+    scheduleAxisLabelsUpdate(data);
+  }, [data, range, scheduleAxisLabelsUpdate]);
+
+  useEffect(() => {
     const container = containerRef.current;
     const currentData = dataRef.current;
     if (!container || currentData.length === 0) return;
 
-    const { chart, series } = createStockChartParts(container, interactive);
+    const { chart, series } = createStockChartParts(container, {
+      interactive,
+    });
 
     chartRef.current = chart;
     seriesRef.current = series;
@@ -110,6 +149,15 @@ export function StockChart({
       startLineRef.current,
     );
     renderedDataRef.current = currentData;
+    scheduleAxisLabelsUpdate(currentData);
+
+    const resizeObserver = new ResizeObserver(() => {
+      // Re-fit the data to the new width; the time scale otherwise keeps the
+      // previous logical range and squeezes the series to one side.
+      chart.timeScale().fitContent();
+      scheduleAxisLabelsUpdate(dataRef.current);
+    });
+    resizeObserver.observe(container);
 
     const clearHover = () => {
       chart.clearCrosshairPosition();
@@ -223,6 +271,7 @@ export function StockChart({
         container.removeEventListener("pointercancel", clearHover);
         container.removeEventListener("pointerleave", clearHover);
       }
+      resizeObserver.disconnect();
       chart.remove();
       chartRef.current = null;
       seriesRef.current = null;
@@ -235,9 +284,20 @@ export function StockChart({
         cancelAnimationFrame(hoverResetFrameRef.current);
         hoverResetFrameRef.current = null;
       }
+      if (axisLabelsFrameRef.current !== null) {
+        cancelAnimationFrame(axisLabelsFrameRef.current);
+        axisLabelsFrameRef.current = null;
+      }
+      setAxisLabels([]);
       onHoverChangeRef.current?.(null);
     };
-  }, [hasData, resolvedTheme, dateFormatter, interactive]);
+  }, [
+    hasData,
+    resolvedTheme,
+    dateFormatter,
+    interactive,
+    scheduleAxisLabelsUpdate,
+  ]);
 
   useEffect(() => {
     const series = seriesRef.current;
@@ -268,6 +328,7 @@ export function StockChart({
           renderedDataRef.current = data;
         },
       });
+      scheduleAxisLabelsUpdate(data);
       return;
     }
 
@@ -282,7 +343,8 @@ export function StockChart({
       startLineRef.current,
     );
     renderedDataRef.current = data;
-  }, [data]);
+    scheduleAxisLabelsUpdate(data);
+  }, [data, scheduleAxisLabelsUpdate]);
 
   if (data.length === 0) {
     return (
@@ -300,6 +362,19 @@ export function StockChart({
   return (
     <div className={cn("relative h-24 w-full", className)}>
       <div ref={containerRef} className="h-full w-full touch-none" />
+      {axisLabels.length > 0 && (
+        <div className="pointer-events-none absolute inset-x-0 bottom-1 z-10 h-4">
+          {axisLabels.map((label) => (
+            <div
+              key={label.id}
+              className="text-muted-foreground absolute bottom-0 -translate-x-1/2 font-mono text-[11px] font-semibold whitespace-nowrap tabular-nums"
+              style={{ left: label.x }}
+            >
+              {label.label}
+            </div>
+          ))}
+        </div>
+      )}
       {interactive && hover && (
         <>
           <div

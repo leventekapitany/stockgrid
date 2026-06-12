@@ -16,6 +16,7 @@ export function applyChartData(
   chart: IChartApi,
   data: StockChartBar[],
   previousStartLine: IPriceLine | null,
+  { fitContent = true }: { fitContent?: boolean } = {},
 ) {
   const startPrice = data[0]?.close;
   if (startPrice === undefined) return null;
@@ -27,12 +28,12 @@ export function applyChartData(
 
   if (previousStartLine) {
     previousStartLine.applyOptions({ price: startPrice });
-    chart.timeScale().fitContent();
+    if (fitContent) chart.timeScale().fitContent();
     return previousStartLine;
   }
 
   const startLine = createStartLine(series, startPrice);
-  chart.timeScale().fitContent();
+  if (fitContent) chart.timeScale().fitContent();
 
   return startLine;
 }
@@ -102,7 +103,7 @@ export function animateChartData({
     }
 
     animationFrameRef.current = null;
-    applyChartData(series, chart, toData, nextStartLine);
+    applyChartData(series, chart, toData, nextStartLine, { fitContent: false });
     onComplete();
   };
 

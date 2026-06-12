@@ -9,19 +9,21 @@ import {
 
 export function createStockChartParts(
   container: HTMLDivElement,
-  interactive: boolean,
+  { interactive }: { interactive: boolean },
 ): {
   chart: IChartApi;
   series: ISeriesApi<"Baseline">;
 } {
+  const { textColor, upColor, downColor } = getChartThemeColors();
   const chart = createChart(container, {
     width: container.clientWidth,
     height: container.clientHeight,
     autoSize: true,
     layout: {
       background: { type: ColorType.Solid, color: "transparent" },
-      textColor: "transparent",
+      textColor,
       attributionLogo: false,
+      fontSize: 10,
     },
     grid: {
       horzLines: { visible: false },
@@ -47,7 +49,12 @@ export function createStockChartParts(
           vertLine: { visible: false },
         },
     leftPriceScale: { visible: false },
-    rightPriceScale: { visible: false },
+    rightPriceScale: {
+      visible: false,
+      // Keep the series clear of the time-axis labels overlaid along the
+      // bottom edge (~16px) while leaving headroom for the hover dot on top.
+      scaleMargins: { top: 0.1, bottom: 0.24 },
+    },
     timeScale: {
       visible: false,
       borderVisible: false,
@@ -56,7 +63,6 @@ export function createStockChartParts(
     handleScale: false,
   });
 
-  const { upColor, downColor } = getChartThemeColors();
   const series = chart.addSeries(BaselineSeries, {
     baseValue: { type: "price", price: 0 },
     lineWidth: interactive ? 2 : 1,
@@ -78,6 +84,8 @@ function getChartThemeColors() {
   const rootStyle = getComputedStyle(document.documentElement);
 
   return {
+    textColor:
+      rootStyle.getPropertyValue("--muted-foreground").trim() || "#7c828a",
     upColor: rootStyle.getPropertyValue("--chart-2").trim() || "#05b169",
     downColor: rootStyle.getPropertyValue("--chart-3").trim() || "#cf202f",
   };

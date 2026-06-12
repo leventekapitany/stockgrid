@@ -1,5 +1,5 @@
 import type { StockChartHover } from "@stock/ui/stock-chart";
-import type { Quote } from "@stock/validators";
+import type { HistoryRange, Quote } from "@stock/validators";
 import { cn } from "@stock/ui";
 
 import type { HistoryQueryState } from "./ticker-chart";
@@ -20,6 +20,7 @@ export function TickerItemMobile({
   chartHover,
   onChartHoverChange,
   history,
+  range,
   chartTimeDisplayMode,
   onRemove,
 }: {
@@ -33,6 +34,7 @@ export function TickerItemMobile({
   chartHover: StockChartHover | null;
   onChartHoverChange: (hover: StockChartHover | null) => void;
   history: HistoryQueryState;
+  range: HistoryRange;
   chartTimeDisplayMode: "intraday" | "calendar";
   onRemove: () => void;
 }) {
@@ -50,8 +52,9 @@ export function TickerItemMobile({
       <div className="min-w-0 flex-1">
         <TickerChart
           history={history}
+          range={range}
           chartTimeDisplayMode={chartTimeDisplayMode}
-          className="h-12"
+          className="h-16"
           onHoverChange={onChartHoverChange}
         />
       </div>
@@ -95,6 +98,7 @@ export function TickerItemDesktop({
   chartHover,
   onChartHoverChange,
   history,
+  range,
   chartTimeDisplayMode,
   onRemove,
 }: {
@@ -110,6 +114,7 @@ export function TickerItemDesktop({
   chartHover: StockChartHover | null;
   onChartHoverChange: (hover: StockChartHover | null) => void;
   history: HistoryQueryState;
+  range: HistoryRange;
   chartTimeDisplayMode: "intraday" | "calendar";
   onRemove: () => void;
 }) {
@@ -168,6 +173,7 @@ export function TickerItemDesktop({
       <div className="border-border/60 bg-background/60 overflow-hidden rounded-md border">
         <TickerChart
           history={history}
+          range={range}
           chartTimeDisplayMode={chartTimeDisplayMode}
           onHoverChange={onChartHoverChange}
         />
